@@ -1,0 +1,383 @@
+{
+  "modules": {
+    "back_office": [
+      {
+        "code_module": "GESTION_ETABLISSEMENT",
+        "nom_standard": "Gestion Établissement",
+        "nom_personnalise": null,
+        "description": "Administration complète de l'établissement: informations, modules, tarifs, assurances, infrastructure",
+        "est_medical": false,
+        "est_obligatoire": true,
+        "est_actif": true,
+        "est_module_back_office": true,
+        "autorise_par_licence": true,
+        "numero_module": 80,
+        "peut_prendre_ticket": false,
+        "rubriques": [
+          {
+            "code_rubrique": "INFORMATIONS_GENERALES",
+            "nom": "Informations Générales",
+            "description": "Gestion des informations de base de l'établissement",
+            "ordre_affichage": 1,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "MODULES_SERVICES",
+            "nom": "Modules & Services",
+            "description": "Configuration des modules actifs et services de l'établissement",
+            "ordre_affichage": 2,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "ACTES_TARIFICATIONS",
+            "nom": "Actes & Tarifications",
+            "description": "Gestion du catalogue des actes médicaux et tarifications",
+            "ordre_affichage": 3,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "ASSURANCES",
+            "nom": "Assurances",
+            "description": "Gestion des organismes payeurs et conventions",
+            "ordre_affichage": 4,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "INFRASTRUCTURES",
+            "nom": "Infrastructures",
+            "description": "Gestion des bâtiments, espaces, chambres et lits",
+            "ordre_affichage": 5,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "LICENCES",
+            "nom": "Licences",
+            "description": "Gestion des licences et activations",
+            "ordre_affichage": 6,
+            "est_obligatoire": true,
+            "est_actif": true
+          }
+        ]
+      },
+      {
+        "code_module": "GESTION_UTILISATEURS",
+        "nom_standard": "Gestion Utilisateurs",
+        "nom_personnalise": null,
+        "description": "Administration des utilisateurs, profils, permissions et sécurité",
+        "est_medical": false,
+        "est_obligatoire": true,
+        "est_actif": true,
+        "est_module_back_office": true,
+        "autorise_par_licence": true,
+        "numero_module": 81,
+        "peut_prendre_ticket": false,
+        "rubriques": [
+          {
+            "code_rubrique": "GESTION_COMPTES",
+            "nom": "Gestion des Comptes",
+            "description": "Création, modification et suppression des comptes utilisateurs",
+            "ordre_affichage": 1,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "PERMISSIONS",
+            "nom": "Permissions",
+            "description": "Attribution et gestion des permissions par module et rubrique",
+            "ordre_affichage": 2,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "GESTION_GROUPES",
+            "nom": "Gestion Groupes",
+            "description": "Création et gestion des groupes d'utilisateurs et profils",
+            "ordre_affichage": 3,
+            "est_obligatoire": false,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "AUDIT_SECURITE",
+            "nom": "Audit et Sécurité",
+            "description": "Suivi des connexions, audit trail et gestion de la sécurité",
+            "ordre_affichage": 4,
+            "est_obligatoire": true,
+            "est_actif": true
+          }
+        ]
+      },
+      {
+        "code_module": "REPORTING_ANALYTICS",
+        "nom_standard": "Reporting & Analytics",
+        "nom_personnalise": null,
+        "description": "Tableaux de bord, rapports et analyses de performance de l'établissement",
+        "est_medical": false,
+        "est_obligatoire": true,
+        "est_actif": true,
+        "est_module_back_office": true,
+        "autorise_par_licence": true,
+        "numero_module": 82,
+        "peut_prendre_ticket": false,
+        "rubriques": [
+          {
+            "code_rubrique": "TABLEAUX_BORD",
+            "nom": "Tableaux de Bord",
+            "description": "Dashboards et vues d'ensemble de l'activité",
+            "ordre_affichage": 1,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "RAPPORTS_OPERATIONNELS",
+            "nom": "Rapports Opérationnels",
+            "description": "Génération de rapports d'activité et de performance",
+            "ordre_affichage": 2,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "ANALYTICS_AVANCES",
+            "nom": "Analytics Avancés",
+            "description": "Analyses statistiques et indicateurs de performance avancés",
+            "ordre_affichage": 3,
+            "est_obligatoire": false,
+            "est_actif": true
+          }
+        ]
+      },
+      {
+        "code_module": "SUPERVISION_MODULAIRE",
+        "nom_standard": "Supervision Modulaire",
+        "nom_personnalise": null,
+        "description": "Supervision et configuration avancée des modules Front Office avec personnalisation dynamique",
+        "est_medical": false,
+        "est_obligatoire": true,
+        "est_actif": true,
+        "est_module_back_office": true,
+        "autorise_par_licence": true,
+        "numero_module": 83,
+        "peut_prendre_ticket": false,
+        "rubriques": [
+          {
+            "code_rubrique": "CONFIGURATION_MODULES",
+            "nom": "Configuration Modules",
+            "description": "Configuration fine des modules Front Office",
+            "ordre_affichage": 1,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "CHAMPS_DYNAMIQUES",
+            "nom": "Champs Dynamiques",
+            "description": "Ajout de champs personnalisés par module métier",
+            "ordre_affichage": 2,
+            "est_obligatoire": false,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "WORKFLOWS_PERSONNALISES",
+            "nom": "Workflows Personnalisés",
+            "description": "Configuration des workflows spécifiques par établissement",
+            "ordre_affichage": 3,
+            "est_obligatoire": false,
+            "est_actif": true
+          }
+        ]
+      }
+    ],
+    "front_office": [
+      {
+        "code_module": "ACCUEIL",
+        "nom_standard": "Accueil",
+        "nom_personnalise": null,
+        "description": "Gestion de l'accueil des patients et prise de rendez-vous",
+        "est_medical": false,
+        "est_obligatoire": true,
+        "est_actif": false,
+        "est_module_back_office": false,
+        "autorise_par_licence": false,
+        "numero_module": 0,
+        "peut_prendre_ticket": false,
+        "rubriques": [
+          {
+            "code_rubrique": "PATIENTS",
+            "nom": "Patients",
+            "description": "Gestion des patients, Création d'un ticket de patient",
+            "ordre_affichage": 1,
+            "est_obligatoire": false,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "HISTORIQUE_TICKETS_PATIENTS",
+            "nom": "Historique des tickets patients",
+            "description": "Consultation ticket (etat, statut du patient), Editer ticket, Ticket de réorientation",
+            "ordre_affichage": 2,
+            "est_obligatoire": false,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "HOSPITALISATIONS",
+            "nom": "Hospitalisations",
+            "description": "Avoir une vue sur les patients en hospitalisations",
+            "ordre_affichage": 3,
+            "est_obligatoire": false,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "GESTION_RENDEZ_VOUS",
+            "nom": "Gestion des rendez-vous",
+            "description": "Prendre un RDV, Valider un RDV, Annuler/Reporter un RDV",
+            "ordre_affichage": 4,
+            "est_obligatoire": false,
+            "est_actif": true
+          }
+        ]
+      },
+      {
+        "code_module": "CAISSE",
+        "nom_standard": "Caisse",
+        "nom_personnalise": null,
+        "description": "Gestion de la facturation et des encaissements",
+        "est_medical": false,
+        "est_obligatoire": true,
+        "est_actif": false,
+        "est_module_back_office": false,
+        "autorise_par_licence": false,
+        "numero_module": 1,
+        "peut_prendre_ticket": false,
+        "rubriques": [
+          {
+            "code_rubrique": "TICKETS_EN_ATTENTE_PAIEMENTS",
+            "nom": "Tickets en attente de paiements",
+            "description": "Liste des tickets en attente de paiements avec Affichage, Validation et possibilité d'annuler.",
+            "ordre_affichage": 1,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "HISTORIQUE_TICKETS_PAYES",
+            "nom": "Historique des tickets payés",
+            "description": "Historique des tickets payés",
+            "ordre_affichage": 1,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "JOURNAL_ACTES_PATIENTS",
+            "nom": "Journal des actes patients",
+            "description": "Journal de tous les actes de patients qui ont été fait depuis la création de son ticket.",
+            "ordre_affichage": 1,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "RESPONSABLES_CAISSES",
+            "nom": "Responsable des caisses",
+            "description": "Permet au responsable de gérer les caisses, d'avoir une vue sur les caisses et les statistiques.",
+            "ordre_affichage": 1,
+            "est_obligatoire": true,
+            "est_actif": true
+          }
+        ]
+      },
+      {
+        "code_module": "INFIRMERIE",
+        "nom_standard": "Infirmerie",
+        "nom_personnalise": null,
+        "description": "Gestion des soins infirmiers et suivi des patients",
+        "est_medical": false,
+        "est_obligatoire": false,
+        "est_actif": false,
+        "est_module_back_office": false,
+        "autorise_par_licence": false,
+        "numero_module": 2,
+        "peut_prendre_ticket": false,
+        "rubriques": [
+          {
+            "code_rubrique": "PATIENTS_EN_ATTENTE",
+            "nom": "Patients en attente",
+            "description": "Liste des patients en attente, prise de constantes, réorientation.",
+            "ordre_affichage": 1,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "HISTORIQUE_PATIENTS",
+            "nom": "Historique des patients",
+            "description": "Historique des patients consultés et réorientés",
+            "ordre_affichage": 1,
+            "est_obligatoire": true,
+            "est_actif": true
+          }
+        ]
+      },
+      {
+        "code_module": "MEDECINE_GENERALE",
+        "nom_standard": "Médecine Générale",
+        "nom_personnalise": null,
+        "description": "Consultations de médecine générale et suivi des patients",
+        "est_medical": true,
+        "est_obligatoire": false,
+        "est_actif": false,
+        "est_module_back_office": false,
+        "autorise_par_licence": false,
+        "numero_module": 3,
+        "peut_prendre_ticket": true,
+        "rubriques": [
+          {
+            "code_rubrique": "PATIENTS_À_CONSULTER",
+            "nom": "Patients à consulter",
+            "description": "Liste des patients à consulter, Consultation de patients, Déterminer l'issue de consultation( terminer, réorientation, hospitaisation, décès).",
+            "ordre_affichage": 1,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "PATIENTS_DÉJÀ_CONSULTER",
+            "nom": "Patients déjà consultés",
+            "description": "Historique des patients dont l'issue de consultation a été fait",
+            "ordre_affichage": 1,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "DEMANDE_HOSPITALISATION",
+            "nom": "Demande d'hospitalisation",
+            "description": "Liste des patients dont la demande d'hospitalisation a été faite",
+            "ordre_affichage": 1,
+            "est_obligatoire": true,
+            "est_actif": true
+          },
+          {
+            "code_rubrique": "HOSPITALISATION",
+            "nom": "Hospitalisations",
+            "description": "Gérer les patients hospitalisés et suivre leurs états",
+            "ordre_affichage": 1,
+            "est_obligatoire": true,
+            "est_actif": true
+          }
+
+        ]
+      },
+      {
+        "code_module": "HOSPITALISATION",
+        "nom_standard": "Hospitalisation",
+        "nom_personnalise": null,
+        "description": "Gérer les patients hospitalisés et suivre leurs états",
+        "est_medical": true,
+        "est_obligatoire": false,
+        "est_actif": false,
+        "est_module_back_office": false,
+        "autorise_par_licence": false,
+        "numero_module": 4,
+        "peut_prendre_ticket": true,
+        "rubriques": []
+      }
+    ]
+  }
+}

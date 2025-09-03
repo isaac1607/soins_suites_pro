@@ -32,13 +32,3 @@ env "development" {
     dir = "file://migrations/postgresql"
   }
 }
-
-# Environnement de production/staging
-env "docker" {
-  src = var.database_url
-  dev = "docker://postgres:15/soins_suite_staging?search_path=${var.schema_name}"
-  
-  migration {
-    dir = "file://migrations/postgresql"
-  }
-}

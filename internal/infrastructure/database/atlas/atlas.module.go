@@ -53,12 +53,12 @@ func NewAtlasSchemaManager(config *AtlasConfig, logger AtlasLogger) *SchemaManag
 	fmt.Printf("[DEBUG] os.Getenv(ATLAS_DEV_DATABASE_URL): '%s'\n", os.Getenv("ATLAS_DEV_DATABASE_URL"))
 	fmt.Printf("[DEBUG] config.DevDatabaseURL: '%s'\n", config.DevDatabaseURL)
 	fmt.Printf("[DEBUG] config.DatabaseURL: '%s'\n", config.DatabaseURL)
-	
+
 	devURL := os.Getenv("ATLAS_DEV_DATABASE_URL")
 	if devURL == "" {
 		devURL = config.DevDatabaseURL
 	}
-	
+
 	schemaConfig := &SchemaManagerConfig{
 		WorkingDir:     config.WorkingDir,
 		SchemasPath:    config.GetAbsoluteSchemasPath(),
@@ -121,6 +121,16 @@ func (s *AtlasService) SchemaManager() *SchemaManager {
 // IsEnabled retourne si Atlas est activé
 func (s *AtlasService) IsEnabled() bool {
 	return s.config.Enabled
+}
+
+// GetMigrationStatus retourne le statut des migrations via le MigrationManager
+func (s *AtlasService) GetMigrationStatus(ctx context.Context) ([]MigrationStatus, error) {
+	return s.migrationMgr.GetMigrationHistory(ctx)
+}
+
+// ApplyMigrations applique les migrations en attente via le MigrationManager
+func (s *AtlasService) ApplyMigrations(ctx context.Context) error {
+	return s.migrationMgr.ApplyMigrations(ctx)
 }
 
 // RegisterAtlasLifecycle enregistre les hooks de lifecycle pour Atlas

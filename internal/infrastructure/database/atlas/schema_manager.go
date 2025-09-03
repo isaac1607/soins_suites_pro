@@ -183,7 +183,7 @@ func (sm *SchemaManager) generateMigration(ctx context.Context, migrationName st
 	fmt.Printf("[DEBUG] Commande Atlas: %s\n", strings.Join(cmd.Args, " "))
 	fmt.Printf("[DEBUG] WorkingDir: %s\n", cmd.Dir)
 	fmt.Printf("[DEBUG] DevDatabaseURL: %s\n", sm.config.DevDatabaseURL)
-	
+
 	// Debug: Afficher les variables d'environnement Atlas
 	for _, env := range cmd.Env {
 		if strings.Contains(env, "database_url") || strings.Contains(env, "dev_database_url") {
@@ -209,7 +209,7 @@ func (sm *SchemaManager) generateMigration(ctx context.Context, migrationName st
 	}
 
 	sm.logger.Info("Migration générée avec succès", "name", migrationName, "output", outputStr)
-	
+
 	// Post-traitement : Ajouter l'extension UUID si nécessaire
 	if err := sm.ensureExtensionInMigration(migrationName); err != nil {
 		sm.logger.Error("Erreur ajout extension dans migration", "error", err, "migration", migrationName)
@@ -220,7 +220,7 @@ func (sm *SchemaManager) generateMigration(ctx context.Context, migrationName st
 			sm.logger.Error("Erreur recalcul checksum Atlas", "error", err)
 		}
 	}
-	
+
 	return true, nil
 }
 
@@ -262,7 +262,7 @@ func (sm *SchemaManager) buildEnv() []string {
 	if sm.config.DatabaseURL != "" {
 		env = append(env, fmt.Sprintf("database_url=%s", sm.config.DatabaseURL))
 	}
-	
+
 	if sm.config.DevDatabaseURL != "" {
 		env = append(env, fmt.Sprintf("dev_database_url=%s", sm.config.DevDatabaseURL))
 	}
@@ -325,7 +325,7 @@ func (sm *SchemaManager) DryRun(ctx context.Context) ([]string, error) {
 		}
 		fromURL = fromURL + separator + "search_path=public"
 	}
-	
+
 	cmd := exec.CommandContext(ctx, "atlas", "schema", "diff",
 		"--from", fromURL,
 		"--to", fmt.Sprintf("file://%s", sm.config.SchemasPath),
@@ -345,7 +345,7 @@ func (sm *SchemaManager) DryRun(ctx context.Context) ([]string, error) {
 
 	// Parser la sortie pour extraire les changements
 	changes := sm.parseSchemaChanges(outputStr)
-	
+
 	if len(changes) > 0 {
 		sm.logger.Info("Changements détectés", "count", len(changes))
 	} else {
@@ -363,8 +363,8 @@ func (sm *SchemaManager) parseSchemaChanges(output string) []string {
 
 	// Si la sortie contient des indications qu'il n'y a pas de changements
 	if strings.Contains(output, "Schemas are synced") ||
-	   strings.Contains(output, "No changes") ||
-	   strings.Contains(output, "up to date") {
+		strings.Contains(output, "No changes") ||
+		strings.Contains(output, "up to date") {
 		return []string{}
 	}
 
@@ -374,9 +374,9 @@ func (sm *SchemaManager) parseSchemaChanges(output string) []string {
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line != "" && 
-		   !strings.HasPrefix(line, "--") && // Ignorer les commentaires SQL
-		   !strings.HasPrefix(line, "/*") {   // Ignorer les commentaires multi-lignes
+		if line != "" &&
+			!strings.HasPrefix(line, "--") && // Ignorer les commentaires SQL
+			!strings.HasPrefix(line, "/*") { // Ignorer les commentaires multi-lignes
 			changes = append(changes, line)
 		}
 	}
@@ -391,7 +391,7 @@ func (sm *SchemaManager) ensureExtensionInMigration(migrationName string) error 
 	if err != nil {
 		return fmt.Errorf("lecture répertoire migrations: %w", err)
 	}
-	
+
 	var targetFile string
 	for _, file := range migrationFiles {
 		if strings.Contains(file.Name(), migrationName) && strings.HasSuffix(file.Name(), ".sql") {
@@ -399,41 +399,41 @@ func (sm *SchemaManager) ensureExtensionInMigration(migrationName string) error 
 			break
 		}
 	}
-	
+
 	if targetFile == "" {
 		return fmt.Errorf("fichier migration non trouvé pour: %s", migrationName)
 	}
-	
+
 	// Lire le contenu du fichier
 	content, err := os.ReadFile(targetFile)
 	if err != nil {
 		return fmt.Errorf("lecture fichier migration: %w", err)
 	}
-	
+
 	contentStr := string(content)
-	
+
 	// Vérifier si uuid_generate_v4() est utilisé
 	if !strings.Contains(contentStr, "uuid_generate_v4()") {
 		sm.logger.Info("Migration ne nécessite pas d'extension UUID", "file", targetFile)
 		return nil
 	}
-	
+
 	// Vérifier si l'extension est déjà présente
 	if strings.Contains(contentStr, "CREATE EXTENSION") && strings.Contains(contentStr, "uuid-ossp") {
 		sm.logger.Info("Extension UUID déjà présente dans migration", "file", targetFile)
 		return nil
 	}
-	
+
 	// Ajouter l'extension au début
 	extensionSQL := "-- Extension UUID requise\nCREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";\n\n"
 	newContent := extensionSQL + contentStr
-	
+
 	// Écrire le fichier modifié
 	err = os.WriteFile(targetFile, []byte(newContent), 0644)
 	if err != nil {
 		return fmt.Errorf("écriture fichier migration: %w", err)
 	}
-	
+
 	sm.logger.Info("Extension UUID ajoutée à la migration", "file", targetFile)
 	return nil
 }
@@ -441,20 +441,20 @@ func (sm *SchemaManager) ensureExtensionInMigration(migrationName string) error 
 // recalculateAtlasChecksum recalcule les checksums Atlas après modification des migrations
 func (sm *SchemaManager) recalculateAtlasChecksum() error {
 	sm.logger.Info("Recalcul checksums Atlas")
-	
+
 	cmd := exec.Command("atlas", "migrate", "hash",
 		"--dir", fmt.Sprintf("file://%s", sm.config.MigrationsPath),
 	)
-	
+
 	cmd.Dir = sm.config.WorkingDir
 	cmd.Env = sm.buildEnv()
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		sm.logger.Error("Erreur recalcul checksums", "error", err, "output", string(output))
 		return fmt.Errorf("recalcul checksums Atlas échoué: %w", err)
 	}
-	
+
 	sm.logger.Info("Checksums Atlas recalculés avec succès")
 	return nil
 }
