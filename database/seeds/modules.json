@@ -10,7 +10,6 @@
         "est_obligatoire": true,
         "est_actif": true,
         "est_module_back_office": true,
-        "autorise_par_licence": true,
         "numero_module": 80,
         "peut_prendre_ticket": false,
         "rubriques": [
@@ -73,7 +72,6 @@
         "est_obligatoire": true,
         "est_actif": true,
         "est_module_back_office": true,
-        "autorise_par_licence": true,
         "numero_module": 81,
         "peut_prendre_ticket": false,
         "rubriques": [
@@ -120,7 +118,6 @@
         "est_obligatoire": true,
         "est_actif": true,
         "est_module_back_office": true,
-        "autorise_par_licence": true,
         "numero_module": 82,
         "peut_prendre_ticket": false,
         "rubriques": [
@@ -159,7 +156,6 @@
         "est_obligatoire": true,
         "est_actif": true,
         "est_module_back_office": true,
-        "autorise_par_licence": true,
         "numero_module": 83,
         "peut_prendre_ticket": false,
         "rubriques": [
@@ -198,9 +194,8 @@
         "description": "Gestion de l'accueil des patients et prise de rendez-vous",
         "est_medical": false,
         "est_obligatoire": true,
-        "est_actif": false,
+        "est_actif": true,
         "est_module_back_office": false,
-        "autorise_par_licence": false,
         "numero_module": 0,
         "peut_prendre_ticket": false,
         "rubriques": [
@@ -245,9 +240,8 @@
         "description": "Gestion de la facturation et des encaissements",
         "est_medical": false,
         "est_obligatoire": true,
-        "est_actif": false,
+        "est_actif": true,
         "est_module_back_office": false,
-        "autorise_par_licence": false,
         "numero_module": 1,
         "peut_prendre_ticket": false,
         "rubriques": [
@@ -292,9 +286,8 @@
         "description": "Gestion des soins infirmiers et suivi des patients",
         "est_medical": false,
         "est_obligatoire": false,
-        "est_actif": false,
+        "est_actif": true,
         "est_module_back_office": false,
-        "autorise_par_licence": false,
         "numero_module": 2,
         "peut_prendre_ticket": false,
         "rubriques": [
@@ -323,9 +316,8 @@
         "description": "Consultations de médecine générale et suivi des patients",
         "est_medical": true,
         "est_obligatoire": false,
-        "est_actif": false,
+        "est_actif": true,
         "est_module_back_office": false,
-        "autorise_par_licence": false,
         "numero_module": 3,
         "peut_prendre_ticket": true,
         "rubriques": [
@@ -371,9 +363,8 @@
         "description": "Gérer les patients hospitalisés et suivre leurs états",
         "est_medical": true,
         "est_obligatoire": false,
-        "est_actif": false,
+        "est_actif": true,
         "est_module_back_office": false,
-        "autorise_par_licence": false,
         "numero_module": 4,
         "peut_prendre_ticket": true,
         "rubriques": []

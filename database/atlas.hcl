@@ -1,44 +1,49 @@
-# Configuration Atlas pour Soins Suite - Mode Schema-Driven
-# Variables d'environnement requises pour chaque environnement
+# Configuration Atlas pour Soins Suite
+# Utilise des variables d'environnement pour éviter d'exposer les informations sensibles
 
-# Variables globales
+# Variables pour les URLs de base de données
+# Ces variables doivent être définies dans l'environnement ou dans .env (non versionné)
 variable "database_url" {
   type = string
-  description = "URL de connexion PostgreSQL"
+  default = getenv("ATLAS_DATABASE_URL")
+  description = "URL de connexion à la base de données principale"
 }
 
 variable "dev_database_url" {
   type = string
-  description = "URL de connexion PostgreSQL pour base temporaire Atlas"
-}
-
-variable "schema_name" {
-  type = string
-  default = "public"
-  description = "Nom du schéma PostgreSQL"
+  default = getenv("ATLAS_DEV_DATABASE_URL")
+  description = "URL de connexion à la base de données de développement/test"
 }
 
 # Environnement de développement
 env "development" {
-  # Source : connexion à la base de données de développement
-  src = var.database_url
-  
-  # Base temporaire pour calculs Atlas (utilise variable d'environnement)
-  dev = var.dev_database_url
+  # URLs récupérées depuis les variables d'environnement
+  url = var.database_url
+  dev-url = var.dev_database_url
   
   # Configuration des migrations
   migration {
-    # Répertoire des fichiers de migration
-    dir = "file://migrations/postgresql"
+    dir = "file://database/migrations/postgresql"
   }
 }
 
-# Environnement de production/staging
+# Environnement Docker/Production
 env "docker" {
-  src = var.database_url
-  dev = "docker://postgres:15/soins_suite_staging?search_path=${var.schema_name}"
+  # Pour Docker, on peut utiliser des URLs spécifiques ou les mêmes variables
+  url = getenv("ATLAS_DATABASE_URL_DOCKER") != "" ? getenv("ATLAS_DATABASE_URL_DOCKER") : var.database_url
+  dev-url = getenv("ATLAS_DEV_DATABASE_URL_DOCKER") != "" ? getenv("ATLAS_DEV_DATABASE_URL_DOCKER") : "docker://postgres/15/dev?search_path=public"
   
   migration {
-    dir = "file://migrations/postgresql"
+    dir = "file://database/migrations/postgresql"
+  }
+}
+
+# Environnement de staging (optionnel)
+env "staging" {
+  url = getenv("ATLAS_DATABASE_URL_STAGING") != "" ? getenv("ATLAS_DATABASE_URL_STAGING") : var.database_url
+  dev-url = getenv("ATLAS_DEV_DATABASE_URL_STAGING") != "" ? getenv("ATLAS_DEV_DATABASE_URL_STAGING") : var.dev_database_url
+  
+  migration {
+    dir = "file://database/migrations/postgresql"
   }
 }

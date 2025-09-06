@@ -3,6 +3,8 @@ package atlas
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -44,9 +46,22 @@ func (m *MigrationManager) ApplyMigrations(ctx context.Context) error {
 		return nil
 	}
 
-	// Appliquer les migrations
+	// Appliquer les migrations - UTILISER LA COMMANDE DIRECTE SANS CONFIG
 	startTime := time.Now()
-	cmd := m.client.buildCommand(ctx, "migrate", "apply", "--env", m.client.environment)
+
+	// Construire la commande directement sans passer par buildCommand qui utilise le config
+	cmd := exec.CommandContext(ctx, "atlas", "migrate", "apply",
+		"--dir", "file://database/migrations/postgresql",
+		"--url", m.client.databaseURL,
+	)
+
+	// S'assurer qu'on est dans le bon répertoire
+	cmd.Dir = m.client.workingDir
+	cmd.Env = os.Environ()
+
+	m.logger.Info("Exécution commande migration",
+		"command", strings.Join(cmd.Args, " "),
+		"workingDir", cmd.Dir)
 
 	output, err := cmd.CombinedOutput()
 	duration := time.Since(startTime)
@@ -79,7 +94,15 @@ func (m *MigrationManager) ApplySpecificMigration(ctx context.Context, targetVer
 	m.logger.Info("Application migration jusqu'à version spécifique", "target_version", targetVersion)
 
 	startTime := time.Now()
-	cmd := m.client.buildCommand(ctx, "migrate", "apply", "--env", m.client.environment, targetVersion)
+
+	// Utiliser la commande directe sans config
+	cmd := exec.CommandContext(ctx, "atlas", "migrate", "apply",
+		"--dir", "file://database/migrations/postgresql",
+		"--url", m.client.databaseURL,
+		targetVersion,
+	)
+	cmd.Dir = m.client.workingDir
+	cmd.Env = os.Environ()
 
 	output, err := cmd.CombinedOutput()
 	duration := time.Since(startTime)
@@ -106,14 +129,29 @@ func (m *MigrationManager) ValidateMigrations(ctx context.Context) error {
 	m.logger.Info("Validation des migrations")
 
 	startTime := time.Now()
-	err := m.client.ValidateConfig(ctx)
+
+	// Valider directement le répertoire de migrations
+	cmd := exec.CommandContext(ctx, "atlas", "migrate", "validate",
+		"--dir", "file://database/migrations/postgresql",
+	)
+	cmd.Dir = m.client.workingDir
+	cmd.Env = os.Environ()
+
+	output, err := cmd.CombinedOutput()
 	duration := time.Since(startTime)
 
 	if err != nil {
+		// Si le répertoire n'existe pas, ce n'est pas une erreur fatale
+		if strings.Contains(string(output), "no such file or directory") {
+			m.logger.Info("Répertoire de migrations n'existe pas encore")
+			return nil
+		}
+
 		m.logger.Error("Validation des migrations échouée",
 			"error", err,
+			"output", string(output),
 			"duration_ms", duration.Milliseconds())
-		return err
+		return fmt.Errorf("validation échouée: %w", err)
 	}
 
 	m.logger.Info("Validation des migrations réussie", "duration_ms", duration.Milliseconds())
@@ -145,7 +183,13 @@ func (m *MigrationManager) GetMigrationHistory(ctx context.Context) ([]Migration
 func (m *MigrationManager) DryRun(ctx context.Context) ([]string, error) {
 	m.logger.Info("Simulation application des migrations (dry-run)")
 
-	cmd := m.client.buildCommand(ctx, "migrate", "apply", "--dry-run", "--env", m.client.environment)
+	cmd := exec.CommandContext(ctx, "atlas", "migrate", "apply",
+		"--dry-run",
+		"--dir", "file://database/migrations/postgresql",
+		"--url", m.client.databaseURL,
+	)
+	cmd.Dir = m.client.workingDir
+	cmd.Env = os.Environ()
 
 	output, err := cmd.Output()
 	if err != nil {

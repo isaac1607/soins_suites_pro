@@ -124,7 +124,7 @@ func (s *seedingService) seedModule(ctx context.Context, tx pgx.Tx, module *Modu
 	if err != nil {
 		return fmt.Errorf("vérification module existant: %w", err)
 	}
-	
+
 	var moduleID string
 	if exists {
 		fmt.Printf("[SEEDING] ⏭️  Module %s existe déjà - Ignoré (pas de mise à jour)\n", module.CodeModule)
@@ -154,19 +154,19 @@ func (s *seedingService) seedModule(ctx context.Context, tx pgx.Tx, module *Modu
 func (s *seedingService) insertModule(ctx context.Context, tx pgx.Tx, module *ModuleJSONData) (string, error) {
 	moduleQuery := `
 		INSERT INTO base_module (
-			numero_module, code_module, nom_standard, nom_personnalise,
+			code_module, nom_standard, nom_personnalise,
 			description, est_medical, est_obligatoire, est_actif,
-			est_module_back_office, autorise_par_licence, peut_prendre_ticket, created_at
+			est_module_back_office, peut_prendre_ticket, created_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 		) RETURNING id
 	`
 
 	var moduleID string
 	err := tx.QueryRow(ctx, moduleQuery,
-		module.NumeroModule, module.CodeModule, module.NomStandard, module.NomPersonnalise,
+		module.CodeModule, module.NomStandard, module.NomPersonnalise,
 		module.Description, module.EstMedical, module.EstObligatoire, module.EstActif,
-		module.EstModuleBackOffice, module.AutoriseParLicence, module.PeutPrendreTicket, time.Now(),
+		module.EstModuleBackOffice, module.PeutPrendreTicket, time.Now(),
 	).Scan(&moduleID)
 
 	if err != nil {
@@ -179,13 +179,13 @@ func (s *seedingService) insertModule(ctx context.Context, tx pgx.Tx, module *Mo
 // getModuleID récupère l'ID d'un module existant par son code
 func (s *seedingService) getModuleID(ctx context.Context, codeModule string) (string, error) {
 	query := `SELECT id FROM base_module WHERE code_module = $1`
-	
+
 	var moduleID string
 	err := s.pgClient.Pool().QueryRow(ctx, query, codeModule).Scan(&moduleID)
 	if err != nil {
 		return "", ErrDatabaseOperation("récupération ID module", err)
 	}
-	
+
 	return moduleID, nil
 }
 

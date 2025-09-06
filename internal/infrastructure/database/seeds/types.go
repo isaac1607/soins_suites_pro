@@ -14,18 +14,16 @@ type SeedDataStatus struct {
 
 // ModuleJSONData représente un module dans le fichier JSON
 type ModuleJSONData struct {
-	NumeroModule        int                  `json:"numero_module"`
-	CodeModule          string               `json:"code_module"`
-	NomStandard         string               `json:"nom_standard"`
-	NomPersonnalise     *string              `json:"nom_personnalise"`
-	Description         string               `json:"description"`
-	EstMedical          bool                 `json:"est_medical"`
-	EstObligatoire      bool                 `json:"est_obligatoire"`
-	EstActif            bool                 `json:"est_actif"`
-	EstModuleBackOffice bool                 `json:"est_module_back_office"`
-	AutoriseParLicence  bool                 `json:"autorise_par_licence"`
-	PeutPrendreTicket   bool                 `json:"peut_prendre_ticket"`
-	Rubriques           []RubriqueJSONData   `json:"rubriques"`
+	CodeModule          string             `json:"code_module"`
+	NomStandard         string             `json:"nom_standard"`
+	NomPersonnalise     *string            `json:"nom_personnalise"`
+	Description         string             `json:"description"`
+	EstMedical          bool               `json:"est_medical"`
+	EstObligatoire      bool               `json:"est_obligatoire"`
+	EstActif            bool               `json:"est_actif"`
+	EstModuleBackOffice bool               `json:"est_module_back_office"`
+	PeutPrendreTicket   bool               `json:"peut_prendre_ticket"`
+	Rubriques           []RubriqueJSONData `json:"rubriques"`
 }
 
 // RubriqueJSONData représente une rubrique dans le fichier JSON

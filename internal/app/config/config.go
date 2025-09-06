@@ -95,10 +95,9 @@ type SystemConfig struct {
 	EnableMiddleware      bool `env:"SYSTEM_ENABLE_MIDDLEWARE"`
 
 	// Variables sécurisées (obligatoires en production)
-	LicenseServerURL   string `env:"LICENSE_SERVER_URL"`
-	AppInstanceID      string `env:"APP_INSTANCE_ID"`
-	EstablishmentToken string `env:"ESTABLISHMENT_TOKEN"`
-	AdminTIRPassword   string `env:"ADMIN_TIR_DEFAULT_PASSWORD"`
+	CentralServerURL string `env:"CENTRAL_SERVER_URL"`
+	AppInstance      string `env:"APP_INSTANCE"`
+	AdminTIRPassword string `env:"ADMIN_TIR_DEFAULT_PASSWORD"`
 }
 
 // LoggingConfig configuration logging
@@ -207,9 +206,8 @@ func NewConfig() (*Config, error) {
 		CacheTTLExpired:       getEnvInt("SYSTEM_CACHE_TTL_EXPIRED", 300),
 		LicenseKeyLength:      getEnvInt("SYSTEM_LICENSE_KEY_LENGTH", 20),
 		EnableMiddleware:      getEnvBool("SYSTEM_ENABLE_MIDDLEWARE", true),
-		LicenseServerURL:      getEnv("LICENSE_SERVER_URL", ""),
-		AppInstanceID:         getEnv("APP_INSTANCE_ID", ""),
-		EstablishmentToken:    getEnv("ESTABLISHMENT_TOKEN", ""),
+		CentralServerURL:      getEnv("CENTRAL_SERVER_URL", ""),
+		AppInstance:           getEnv("APP_INSTANCE_ID", ""),
 		AdminTIRPassword:      getEnv("ADMIN_TIR_DEFAULT_PASSWORD", ""),
 	}
 
@@ -370,14 +368,11 @@ func validateConfig(config *Config) error {
 		if config.Database.Password == "" {
 			missingVars = append(missingVars, "DB_PASSWORD")
 		}
-		if config.System.LicenseServerURL == "" {
-			missingVars = append(missingVars, "LICENSE_SERVER_URL")
+		if config.System.CentralServerURL == "" {
+			missingVars = append(missingVars, "CENTRAL_SERVER_URL")
 		}
-		if config.System.AppInstanceID == "" {
-			missingVars = append(missingVars, "APP_INSTANCE_ID")
-		}
-		if config.System.EstablishmentToken == "" {
-			missingVars = append(missingVars, "ESTABLISHMENT_TOKEN")
+		if config.System.AppInstance == "" {
+			missingVars = append(missingVars, "APP_INSTANCE")
 		}
 
 		// Warning pour variables recommandées en docker

@@ -139,17 +139,27 @@ func (c *Client) Stats() *redis.PoolStats {
 // MÉTHODES AVEC GÉNÉRATION AUTOMATIQUE DE CLÉS
 // ============================================
 
-// SetWithPattern sauvegarde une valeur avec un pattern standardisé
-func (c *Client) SetWithPattern(ctx context.Context, patternName string, value interface{}, identifier ...string) error {
-	key, err := c.keyGenerator.GenerateKey(patternName, identifier...)
+// SetWithPattern sauvegarde une valeur avec un pattern standardisé selon les conventions
+func (c *Client) SetWithPattern(ctx context.Context, patternName, establishmentCode string, value interface{}, identifier ...string) error {
+	key, err := c.keyGenerator.GenerateKey(patternName, establishmentCode, identifier...)
 	if err != nil {
 		return fmt.Errorf("erreur génération clé: %w", err)
 	}
 
-	// Récupérer le TTL du pattern
+	// Récupérer le TTL du pattern avec logique spéciale pour cache_middleware
 	ttl, err := c.keyGenerator.GetTTL(patternName)
 	if err != nil {
 		return fmt.Errorf("erreur récupération TTL: %w", err)
+	}
+
+	// Logique spéciale pour cache_middleware selon l'identifier
+	if patternName == "cache_middleware" && len(identifier) > 0 {
+		switch identifier[0] {
+		case "license":
+			ttl = 86400 // 24h pour les licences (données semi-statiques)
+		case "establishment":
+			ttl = 0 // Infini pour établissement (données immuables)
+		}
 	}
 
 	var duration time.Duration
@@ -162,9 +172,9 @@ func (c *Client) SetWithPattern(ctx context.Context, patternName string, value i
 	return c.rdb.Set(ctx, key, value, duration).Err()
 }
 
-// GetWithPattern récupère une valeur avec un pattern standardisé
-func (c *Client) GetWithPattern(ctx context.Context, patternName string, identifier ...string) (string, error) {
-	key, err := c.keyGenerator.GenerateKey(patternName, identifier...)
+// GetWithPattern récupère une valeur avec un pattern standardisé selon les conventions
+func (c *Client) GetWithPattern(ctx context.Context, patternName, establishmentCode string, identifier ...string) (string, error) {
+	key, err := c.keyGenerator.GenerateKey(patternName, establishmentCode, identifier...)
 	if err != nil {
 		return "", fmt.Errorf("erreur génération clé: %w", err)
 	}
@@ -176,9 +186,9 @@ func (c *Client) GetWithPattern(ctx context.Context, patternName string, identif
 	return result.Val(), result.Err()
 }
 
-// DelWithPattern supprime une valeur avec un pattern standardisé
-func (c *Client) DelWithPattern(ctx context.Context, patternName string, identifier ...string) error {
-	key, err := c.keyGenerator.GenerateKey(patternName, identifier...)
+// DelWithPattern supprime une valeur avec un pattern standardisé selon les conventions
+func (c *Client) DelWithPattern(ctx context.Context, patternName, establishmentCode string, identifier ...string) error {
+	key, err := c.keyGenerator.GenerateKey(patternName, establishmentCode, identifier...)
 	if err != nil {
 		return fmt.Errorf("erreur génération clé: %w", err)
 	}
@@ -186,9 +196,9 @@ func (c *Client) DelWithPattern(ctx context.Context, patternName string, identif
 	return c.rdb.Del(ctx, key).Err()
 }
 
-// ExistsWithPattern vérifie l'existence avec un pattern standardisé
-func (c *Client) ExistsWithPattern(ctx context.Context, patternName string, identifier ...string) (bool, error) {
-	key, err := c.keyGenerator.GenerateKey(patternName, identifier...)
+// ExistsWithPattern vérifie l'existence avec un pattern standardisé selon les conventions
+func (c *Client) ExistsWithPattern(ctx context.Context, patternName, establishmentCode string, identifier ...string) (bool, error) {
+	key, err := c.keyGenerator.GenerateKey(patternName, establishmentCode, identifier...)
 	if err != nil {
 		return false, fmt.Errorf("erreur génération clé: %w", err)
 	}
@@ -197,9 +207,9 @@ func (c *Client) ExistsWithPattern(ctx context.Context, patternName string, iden
 	return result.Val() > 0, result.Err()
 }
 
-// GenerateKey expose la génération de clé pour usage direct
-func (c *Client) GenerateKey(patternName string, identifier ...string) (string, error) {
-	return c.keyGenerator.GenerateKey(patternName, identifier...)
+// GenerateKey expose la génération de clé pour usage direct selon les conventions
+func (c *Client) GenerateKey(patternName, establishmentCode string, identifier ...string) (string, error) {
+	return c.keyGenerator.GenerateKey(patternName, establishmentCode, identifier...)
 }
 
 // ValidateKey valide une clé selon les standards
@@ -207,9 +217,9 @@ func (c *Client) ValidateKey(key string) error {
 	return c.keyGenerator.ValidateKey(key)
 }
 
-// InvalidateModuleCache invalide toutes les clés d'un module/feature
-func (c *Client) InvalidateModuleCache(ctx context.Context, module string, feature string) error {
-	pattern := c.keyGenerator.GenerateWildcardPattern(module, feature)
+// InvalidateModuleCache invalide toutes les clés d'un domaine/context pour un établissement
+func (c *Client) InvalidateModuleCache(ctx context.Context, establishmentCode, domain, context string) error {
+	pattern := c.keyGenerator.GenerateWildcardPattern(establishmentCode, domain, context)
 
 	keys, err := c.rdb.Keys(ctx, pattern).Result()
 	if err != nil {

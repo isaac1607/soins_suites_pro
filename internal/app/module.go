@@ -4,16 +4,14 @@ import (
 	"soins-suite-core/internal/app/bootstrap"
 	"soins-suite-core/internal/app/config"
 	"soins-suite-core/internal/infrastructure/database"
-	"soins-suite-core/internal/infrastructure/database/redis"
 	"soins-suite-core/internal/infrastructure/logger"
+	"soins-suite-core/internal/shared/middleware"
+	"soins-suite-core/internal/modules/system"
 
 	"go.uber.org/fx"
 )
 
-// NewRedisKeyGenerator crée le générateur de clés Redis
-func NewRedisKeyGenerator(cfg *config.Config) *redis.RedisKeyGenerator {
-	return redis.NewRedisKeyGenerator(cfg.Environment)
-}
+// La fonction NewRedisKeyGenerator est maintenant fournie directement par le module Redis
 
 var AppModule = fx.Options(
 	// Configuration (doit être fournie en premier)
@@ -25,15 +23,17 @@ var AppModule = fx.Options(
 	fx.Provide(config.NewMongoConfig),
 
 	// Utilitaires partagés (après config, avant infrastructure)
-	fx.Provide(NewRedisKeyGenerator),
+	// NewRedisKeyGenerator est maintenant fourni par redis.Module
 
 	// Infrastructure
 	database.Module,
 	logger.Module,
 
 	// Middlewares partagés (après infrastructure, avant modules métier)
+	middleware.Module,
 
 	// Modules métier
+	system.Module,
 
 	// Bootstrap System - Providers
 	fx.Provide(bootstrap.NewBootstrapExtensionManager),

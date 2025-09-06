@@ -6,66 +6,56 @@ import (
 	"strings"
 )
 
-// RedisKeyGenerator génère et valide les clés Redis selon les standards
-type RedisKeyGenerator struct {
-	environment string
-	namespace   string
-}
+// RedisKeyGenerator génère et valide les clés Redis selon les conventions Soins Suite
+type RedisKeyGenerator struct{}
 
 // NewRedisKeyGenerator crée une nouvelle instance du générateur
-func NewRedisKeyGenerator(environment string) *RedisKeyGenerator {
-	return &RedisKeyGenerator{
-		environment: environment,
-		namespace:   "soins_suite",
-	}
+func NewRedisKeyGenerator() *RedisKeyGenerator {
+	return &RedisKeyGenerator{}
 }
 
-// RedisKeyPattern définit les patterns standards des clés
+// RedisKeyPattern définit les patterns standards des clés selon les conventions
+// Pattern: soins_suite_{code_etablissement}_{domain}_{context}:{identifier}
 type RedisKeyPattern struct {
-	Module     string
-	Feature    string
-	TTL        int // TTL en secondes, 0 = pas d'expiration
-	Persistent bool
+	Domain  string // auth, cache, setup, etc.
+	Context string // session, license, state, etc.
+	TTL     int    // TTL en secondes, 0 = pas d'expiration
 }
 
-// Patterns prédéfinis pour chaque module
+// Patterns prédéfinis selon les conventions du projet
+// Note : Seuls les patterns réellement implémentés sont listés ici
 var RedisKeyPatterns = map[string]RedisKeyPattern{
-	// Module System - Pattern unique simplifié
-	"system_status": {Module: "system", Feature: "status", TTL: 1800, Persistent: false}, // 30min
-
-	// Module Auth - Patterns réels utilisés dans l'implémentation
-	"auth_session":       {Module: "auth", Feature: "session", TTL: 3600, Persistent: false},       // 1h - sessions actives
-	"auth_user_sessions": {Module: "auth", Feature: "user_sessions", TTL: 3600, Persistent: false}, // 1h - index sessions par utilisateur
-	"auth_permissions":   {Module: "auth", Feature: "permissions", TTL: 3600, Persistent: false},   // 1h - cache permissions utilisateur
+	// Cache - Middlewares avec TTL différenciés
+	"cache_middleware": {Domain: "cache", Context: "middleware", TTL: 0}, // TTL infini pour établissement (données immuables)
 }
 
-// GenerateKey génère une clé Redis standardisée
-func (rkg *RedisKeyGenerator) GenerateKey(patternName string, identifier ...string) (string, error) {
+// GenerateKey génère une clé Redis selon la convention : soins_suite_{etablissement}_{domain}_{context}:{identifier}
+func (rkg *RedisKeyGenerator) GenerateKey(patternName, establishmentCode string, identifier ...string) (string, error) {
 	pattern, exists := RedisKeyPatterns[patternName]
 	if !exists {
 		return "", fmt.Errorf("pattern Redis non trouvé: %s", patternName)
 	}
 
-	// Construction de la clé
-	var keyParts []string
-	keyParts = append(keyParts, rkg.environment)
-	keyParts = append(keyParts, rkg.namespace)
-	keyParts = append(keyParts, pattern.Module)
-	keyParts = append(keyParts, pattern.Feature)
+	// Validation du code établissement
+	if establishmentCode == "" {
+		return "", fmt.Errorf("code établissement requis pour la génération de clé")
+	}
+	if !rkg.isValidEstablishmentCode(establishmentCode) {
+		return "", fmt.Errorf("code établissement invalide: %s", establishmentCode)
+	}
 
-	// Ajout des identifiants
+	// Construction de la clé selon la convention
+	// Format: soins_suite_{etablissement}_{domain}_{context}:{identifier}
+	prefix := fmt.Sprintf("soins_suite_%s_%s_%s", establishmentCode, pattern.Domain, pattern.Context)
+	
 	if len(identifier) > 0 {
-		keyParts = append(keyParts, identifier...)
+		// Joindre les identifiants avec "_" s'il y en a plusieurs
+		identifierStr := strings.Join(identifier, "_")
+		return fmt.Sprintf("%s:%s", prefix, identifierStr), nil
 	}
 
-	key := strings.Join(keyParts, ":")
-
-	// Validation finale
-	if err := rkg.ValidateKey(key); err != nil {
-		return "", fmt.Errorf("clé générée invalide: %w", err)
-	}
-
-	return key, nil
+	// Si pas d'identifier, retourner juste le préfixe (pour les clés singleton)
+	return prefix, nil
 }
 
 // GetTTL récupère le TTL d'un pattern
@@ -75,15 +65,6 @@ func (rkg *RedisKeyGenerator) GetTTL(patternName string) (int, error) {
 		return 0, fmt.Errorf("pattern Redis non trouvé: %s", patternName)
 	}
 	return pattern.TTL, nil
-}
-
-// IsPersistent vérifie si une clé doit être persistante
-func (rkg *RedisKeyGenerator) IsPersistent(patternName string) bool {
-	pattern, exists := RedisKeyPatterns[patternName]
-	if !exists {
-		return false
-	}
-	return pattern.Persistent
 }
 
 // ValidateKey valide qu'une clé respecte les conventions
@@ -97,29 +78,45 @@ func (rkg *RedisKeyGenerator) ValidateKey(key string) error {
 		return fmt.Errorf("clé trop longue (max 250 caractères): %d", len(key))
 	}
 
-	// Vérification format
+	// Vérification format général
 	validKeyRegex := regexp.MustCompile(`^[a-zA-Z0-9_:\-]+$`)
 	if !validKeyRegex.MatchString(key) {
 		return fmt.Errorf("clé contient des caractères invalides: %s", key)
 	}
 
-	// Vérification structure
-	parts := strings.Split(key, ":")
-	if len(parts) < 4 {
-		return fmt.Errorf("structure clé invalide (min 4 parties): %s", key)
+	// Vérification convention soins_suite_{etablissement}_{domain}_{context}
+	if !strings.HasPrefix(key, "soins_suite_") {
+		return fmt.Errorf("clé doit commencer par 'soins_suite_': %s", key)
 	}
 
-	// Vérification environnement
-	if parts[0] != rkg.environment {
-		return fmt.Errorf("environnement incorrect: attendu %s, reçu %s", rkg.environment, parts[0])
+	// Extraction des parties pour validation
+	parts := strings.SplitN(key, ":", 2)
+	prefix := parts[0]
+	
+	// Vérification structure du préfixe
+	prefixParts := strings.Split(prefix, "_")
+	if len(prefixParts) < 4 {
+		return fmt.Errorf("structure préfixe invalide (format: soins_suite_etablissement_domain_context): %s", prefix)
 	}
 
-	// Vérification namespace
-	if parts[1] != rkg.namespace {
-		return fmt.Errorf("namespace incorrect: attendu %s, reçu %s", rkg.namespace, parts[1])
+	if prefixParts[0] != "soins" || prefixParts[1] != "suite" {
+		return fmt.Errorf("préfixe incorrect: doit commencer par 'soins_suite': %s", prefix)
+	}
+
+	// Validation code établissement
+	establishmentCode := prefixParts[2]
+	if !rkg.isValidEstablishmentCode(establishmentCode) {
+		return fmt.Errorf("code établissement invalide: %s", establishmentCode)
 	}
 
 	return nil
+}
+
+// isValidEstablishmentCode valide le format du code établissement
+func (rkg *RedisKeyGenerator) isValidEstablishmentCode(code string) bool {
+	// Même validation que le middleware : alphanumérique, 3-20 caractères, majuscules
+	matched, _ := regexp.MatchString(`^[A-Z0-9]{3,20}$`, code)
+	return matched
 }
 
 // ListAllPatterns retourne tous les patterns disponibles
@@ -127,49 +124,65 @@ func (rkg *RedisKeyGenerator) ListAllPatterns() map[string]RedisKeyPattern {
 	return RedisKeyPatterns
 }
 
-// GenerateWildcardPattern génère un pattern wildcard pour recherche
-func (rkg *RedisKeyGenerator) GenerateWildcardPattern(module string, feature string) string {
-	return fmt.Sprintf("%s:%s:%s:%s:*", rkg.environment, rkg.namespace, module, feature)
+// GenerateWildcardPattern génère un pattern wildcard pour recherche par domaine/context
+func (rkg *RedisKeyGenerator) GenerateWildcardPattern(establishmentCode, domain, context string) string {
+	return fmt.Sprintf("soins_suite_%s_%s_%s*", establishmentCode, domain, context)
 }
 
-// RedisKeyInfo contient les informations d'une clé analysée
+// RedisKeyInfo contient les informations d'une clé analysée selon les conventions
 type RedisKeyInfo struct {
-	Environment string
-	Namespace   string
-	Module      string
-	Feature     string
-	Identifier  []string
-	IsValid     bool
-	Error       string
+	EstablishmentCode string
+	Domain            string
+	Context           string
+	Identifier        string
+	IsValid           bool
+	Error             string
 }
 
-// AnalyzeKey analyse et décompose une clé Redis
+// AnalyzeKey analyse et décompose une clé Redis selon les conventions
 func (rkg *RedisKeyGenerator) AnalyzeKey(key string) RedisKeyInfo {
-	parts := strings.Split(key, ":")
 	info := RedisKeyInfo{
 		IsValid: false,
 	}
 
-	if len(parts) < 4 {
-		info.Error = "Structure insuffisante"
-		return info
-	}
-
-	info.Environment = parts[0]
-	info.Namespace = parts[1]
-	info.Module = parts[2]
-	info.Feature = parts[3]
-
-	if len(parts) > 4 {
-		info.Identifier = parts[4:]
-	}
-
-	// Validation
+	// Validation préliminaire
 	if err := rkg.ValidateKey(key); err != nil {
 		info.Error = err.Error()
 		return info
 	}
 
+	// Découpage de la clé
+	parts := strings.SplitN(key, ":", 2)
+	prefix := parts[0]
+	
+	if len(parts) > 1 {
+		info.Identifier = parts[1]
+	}
+
+	// Analyse du préfixe soins_suite_etablissement_domain_context
+	prefixParts := strings.Split(prefix, "_")
+	if len(prefixParts) >= 4 {
+		info.EstablishmentCode = prefixParts[2]
+		info.Domain = prefixParts[3]
+		if len(prefixParts) >= 5 {
+			// Si plus de 4 parties, joindre le reste pour le context
+			info.Context = strings.Join(prefixParts[4:], "_")
+		}
+	}
+
 	info.IsValid = true
 	return info
+}
+
+// Helper functions for patterns management
+
+// GetKeyInfo retourne les informations d'une clé (alias pour AnalyzeKey)
+func (rkg *RedisKeyGenerator) GetKeyInfo(key string) RedisKeyInfo {
+	return rkg.AnalyzeKey(key)
+}
+
+// BuildEstablishmentCacheKey construit une clé de cache pour un établissement
+func (rkg *RedisKeyGenerator) BuildEstablishmentCacheKey(establishmentCode, cacheType string, identifier ...string) (string, error) {
+	patternName := "cache_" + cacheType
+	return rkg.GenerateKey(patternName, establishmentCode, identifier...)
 }

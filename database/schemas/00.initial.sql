@@ -28,7 +28,7 @@ CREATE TABLE base_etablissement (
 
   -- Code établissement
   app_instance UUID NOT NULL DEFAULT uuid_generate_v4(),
-  etablissement_code VARCHAR(20) NOT NULL,
+  code_etablissement VARCHAR(20) NOT NULL DEFAULT '',
 
   -- Identification établissement
   nom VARCHAR(255) NOT NULL,
@@ -71,10 +71,9 @@ CREATE TABLE base_etablissement (
   updated_by UUID,
 
   -- Contraintes métier
-  CONSTRAINT UQ_base_etablissement_etablissement_code UNIQUE (etablissement_code),
+  CONSTRAINT UQ_base_code_etablissement_etablissement UNIQUE (code_etablissement),
   CONSTRAINT UQ_base_etablissement_app_instance UNIQUE (app_instance),
-  CONSTRAINT CK_base_etablissement_statut CHECK (statut IN ('actif', 'suspendu','archive')),
-  CONSTRAINT FK_base_etablissement_updated_by FOREIGN KEY (updated_by) REFERENCES user_utilisateur(id)
+  CONSTRAINT CK_base_etablissement_statut CHECK (statut IN ('actif', 'suspendu','archive'))
 );
 
 
@@ -142,6 +141,16 @@ CREATE TABLE user_utilisateur (
   CONSTRAINT FK_user_utilisateur_created_by FOREIGN KEY (created_by) REFERENCES user_utilisateur(id),
   CONSTRAINT FK_user_utilisateur_updated_by FOREIGN KEY (updated_by) REFERENCES user_utilisateur(id)
 );
+
+-- =====================================
+-- AJOUT DES FOREIGN KEYS APRÈS CRÉATION DES TABLES
+-- =====================================
+-- Maintenant que les deux tables existent, on peut ajouter les FK manquantes
+
+-- FK de base_etablissement vers user_utilisateur
+ALTER TABLE base_etablissement 
+ADD CONSTRAINT FK_base_etablissement_updated_by 
+FOREIGN KEY (updated_by) REFERENCES user_utilisateur(id);
 
 -- =====================================
 -- TABLE : BASE_LICENCE

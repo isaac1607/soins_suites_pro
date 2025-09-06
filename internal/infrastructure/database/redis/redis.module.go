@@ -12,6 +12,7 @@ func NewRedisClient(config *RedisConfig, keyGenerator *RedisKeyGenerator) (*Clie
 }
 
 var Module = fx.Options(
+	fx.Provide(NewRedisKeyGenerator),
 	fx.Provide(NewRedisClient),
 	fx.Invoke(RegisterLifecycle),
 )
