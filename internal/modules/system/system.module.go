@@ -6,7 +6,7 @@ import (
 
 	"soins-suite-core/internal/modules/system/controllers"
 	"soins-suite-core/internal/modules/system/services"
-	middlewareAuth "soins-suite-core/internal/shared/middleware/authentication"
+	middlewareAuth "soins-suite-core/internal/shared/middleware/tenant"
 )
 
 // Module regroupe tous les providers du domaine System

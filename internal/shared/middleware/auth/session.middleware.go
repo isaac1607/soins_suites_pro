@@ -2,17 +2,15 @@ package auth
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"soins-suite-core/internal/infrastructure/database/postgres"
 	"soins-suite-core/internal/infrastructure/database/redis"
 	"soins-suite-core/internal/modules/auth/dto"
 	"soins-suite-core/internal/modules/auth/services"
-	"soins-suite-core/internal/shared/middleware/authentication"
+	"soins-suite-core/internal/shared/middleware/tenant"
 )
 
 // SessionContext contient les informations de session injectées dans le contexte Gin
@@ -64,7 +62,7 @@ func (m *SessionMiddleware) Handler() gin.HandlerFunc {
 			return
 		}
 
-		establishment, ok := establishmentValue.(authentication.EstablishmentContext)
+		establishment, ok := establishmentValue.(tenant.EstablishmentContext)
 		if !ok {
 			m.respondError(c, http.StatusInternalServerError, "ESTABLISHMENT_CONTEXT_INVALID",
 				"Contexte établissement invalide", nil)

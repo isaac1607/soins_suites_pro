@@ -4,11 +4,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"soins-suite-core/internal/modules/auth/dto"
 	"soins-suite-core/internal/modules/auth/services"
-	"soins-suite-core/internal/shared/middleware/authentication"
 	authMiddleware "soins-suite-core/internal/shared/middleware/auth"
+	"soins-suite-core/internal/shared/middleware/tenant"
+
+	"github.com/gin-gonic/gin"
 )
 
 type AuthController struct {
@@ -25,9 +26,9 @@ func NewAuthController(authService *services.AuthService) *AuthController {
 // Login - POST /api/v1/auth/login
 func (c *AuthController) Login(ctx *gin.Context) {
 	// Récupérer les headers requis
-	establishmentCode := ctx.GetHeader("X-Establishment-Code")
+	// establishmentCode := ctx.GetHeader("X-Establishment-Code")
 	clientType := ctx.GetHeader("X-Client-Type")
-	
+
 	// Récupérer l'établissement depuis le contexte (injecté par EstablishmentMiddleware)
 	establishmentValue, exists := ctx.Get("establishment")
 	if !exists {
@@ -40,7 +41,7 @@ func (c *AuthController) Login(ctx *gin.Context) {
 		return
 	}
 
-	establishment, ok := establishmentValue.(authentication.EstablishmentContext)
+	establishment, ok := establishmentValue.(tenant.EstablishmentContext)
 	if !ok {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Contexte établissement invalide",
@@ -56,7 +57,7 @@ func (c *AuthController) Login(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"error": "Type de client requis",
 			"details": map[string]interface{}{
-				"code": "CLIENT_TYPE_REQUIRED",
+				"code":        "CLIENT_TYPE_REQUIRED",
 				"valid_types": []string{"front-office", "back-office"},
 			},
 		})
@@ -69,7 +70,7 @@ func (c *AuthController) Login(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"error": "Données de connexion invalides",
 			"details": map[string]interface{}{
-				"code": "INVALID_REQUEST_FORMAT",
+				"code":              "INVALID_REQUEST_FORMAT",
 				"validation_errors": err.Error(),
 			},
 		})
@@ -156,7 +157,7 @@ func (c *AuthController) Logout(ctx *gin.Context) {
 	// Récupérer le token depuis le header Authorization
 	authHeader := ctx.GetHeader("Authorization")
 	token := c.extractBearerToken(authHeader)
-	
+
 	if token == "" {
 		ctx.JSON(http.StatusUnauthorized, gin.H{
 			"error": "Token d'authentification requis",
@@ -179,7 +180,7 @@ func (c *AuthController) Logout(ctx *gin.Context) {
 		return
 	}
 
-	establishment, ok := establishmentValue.(authentication.EstablishmentContext)
+	establishment, ok := establishmentValue.(tenant.EstablishmentContext)
 	if !ok {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Contexte établissement invalide",
@@ -211,7 +212,7 @@ func (c *AuthController) Logout(ctx *gin.Context) {
 func (c *AuthController) Me(ctx *gin.Context) {
 	// Les informations de session sont déjà validées et injectées par SessionMiddleware
 	// Récupérer les informations de session depuis le contexte
-	sessionValue, exists := ctx.Get("session")
+	_, exists := ctx.Get("session")
 	if !exists {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Session context missing - SessionMiddleware required",
@@ -225,18 +226,18 @@ func (c *AuthController) Me(ctx *gin.Context) {
 	// Le SessionMiddleware garantit que la session est valide et le contexte enrichi
 	userID := ctx.GetString("user_id")
 	establishmentID := ctx.GetString("establishment_id")
-	
+
 	// Le establishment_code vient du EstablishmentMiddleware, pas SessionMiddleware
 	establishmentValue, _ := ctx.Get("establishment")
-	establishment, _ := establishmentValue.(authentication.EstablishmentContext)
+	establishment, _ := establishmentValue.(tenant.EstablishmentContext)
 	establishmentCode := establishment.Code
-	
+
 	if userID == "" || establishmentCode == "" {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Session context incomplete",
 			"details": map[string]interface{}{
-				"code": "SESSION_CONTEXT_INCOMPLETE",
-				"user_id": userID,
+				"code":               "SESSION_CONTEXT_INCOMPLETE",
+				"user_id":            userID,
 				"establishment_code": establishmentCode,
 			},
 		})
@@ -269,7 +270,7 @@ func (c *AuthController) Me(ctx *gin.Context) {
 		if sessionCtx, ok := sessionValue.(authMiddleware.SessionContext); ok {
 			result.Session = dto.SessionInfo{
 				Token:      sessionCtx.Token,
-				ExpiresAt:  sessionCtx.ExpiresAt, 
+				ExpiresAt:  sessionCtx.ExpiresAt,
 				ClientType: sessionCtx.ClientType,
 			}
 		}

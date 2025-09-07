@@ -100,8 +100,6 @@ func (s *SystemService) getEstablishmentInfo(ctx context.Context, establishmentI
 		&establishment.Nom,
 		&establishment.NomCourt,
 		&establishment.Ville,
-		&establishment.SetupTermine,
-		&establishment.SetupEtape,
 		&establishment.CreatedAt,
 	)
 

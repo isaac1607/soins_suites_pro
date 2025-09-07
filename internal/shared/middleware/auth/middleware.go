@@ -5,7 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"soins-suite-core/internal/infrastructure/database/postgres"
 	"soins-suite-core/internal/infrastructure/database/redis"
-	"soins-suite-core/internal/shared/middleware/authentication"
+	"soins-suite-core/internal/shared/middleware/tenant"
 )
 
 // AuthMiddlewares contient tous les middlewares d'authentification
@@ -24,14 +24,14 @@ func NewAuthMiddlewares(db *postgres.Client, redisClient *redis.Client) *AuthMid
 
 // AuthMiddlewareStack représente une pile de middlewares d'authentification
 type AuthMiddlewareStack struct {
-	EstablishmentMiddleware *authentication.EstablishmentMiddleware
+	EstablishmentMiddleware *tenant.EstablishmentMiddleware
 	SessionMiddleware       *SessionMiddleware
 	PermissionMiddleware    *PermissionMiddleware
 }
 
 // NewAuthMiddlewareStack crée une nouvelle pile de middlewares
 func NewAuthMiddlewareStack(
-	establishmentMiddleware *authentication.EstablishmentMiddleware,
+	establishmentMiddleware *tenant.EstablishmentMiddleware,
 	authMiddlewares *AuthMiddlewares,
 ) *AuthMiddlewareStack {
 	return &AuthMiddlewareStack{

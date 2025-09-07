@@ -32,7 +32,7 @@ func RegisterAuthRoutes(
 	// Groupe API v1 pour l'authentification
 	authAPI := r.Group("/api/v1/auth")
 	{
-		// Login - Nécessite EstablishmentMiddleware uniquement (appliqué globalement)
+		// Login - Nécessite EstablishmentMiddleware uniquement (rate limiting géré par AuthService)
 		authAPI.POST("/login", authController.Login)
 		
 		// Logout - Nécessite EstablishmentMiddleware uniquement (appliqué globalement)

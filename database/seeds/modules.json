@@ -22,17 +22,17 @@
             "est_actif": true
           },
           {
-            "code_rubrique": "MODULES_SERVICES",
-            "nom": "Modules & Services",
-            "description": "Configuration des modules actifs et services de l'établissement",
+            "code_rubrique": "MODULES",
+            "nom": "Modules",
+            "description": "Configuration des modules de l'établissement, des types de prestations.",
             "ordre_affichage": 2,
             "est_obligatoire": true,
             "est_actif": true
           },
           {
-            "code_rubrique": "ACTES_TARIFICATIONS",
-            "nom": "Actes & Tarifications",
-            "description": "Gestion du catalogue des actes médicaux et tarifications",
+            "code_rubrique": "PRESTATIONS",
+            "nom": "Prestations & Tarifications",
+            "description": "Gestion du catalogue des prestations et tarifications",
             "ordre_affichage": 3,
             "est_obligatoire": true,
             "est_actif": true
@@ -80,14 +80,6 @@
             "nom": "Gestion des Comptes",
             "description": "Création, modification et suppression des comptes utilisateurs",
             "ordre_affichage": 1,
-            "est_obligatoire": true,
-            "est_actif": true
-          },
-          {
-            "code_rubrique": "PERMISSIONS",
-            "nom": "Permissions",
-            "description": "Attribution et gestion des permissions par module et rubrique",
-            "ordre_affichage": 2,
             "est_obligatoire": true,
             "est_actif": true
           },

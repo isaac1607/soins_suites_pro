@@ -51,11 +51,6 @@ CREATE TABLE base_etablissement (
   -- Configuration administrative
   duree_validite_ticket_jours INTEGER DEFAULT 15,
   nb_souches_par_caisse INTEGER DEFAULT 100,
-
-  -- Config Back Office
-  setup_est_termine BOOLEAN NOT NULL DEFAULT FALSE,
-  setup_etape INTEGER NOT NULL DEFAULT 0,
-
   -- Horaires de garde
   garde_heure_debut TIME,
   garde_heure_fin TIME,
@@ -302,35 +297,6 @@ CREATE TABLE base_rubrique (
   CONSTRAINT FK_base_rubrique_rubrique_parent_id FOREIGN KEY (rubrique_parent_id) REFERENCES base_rubrique(id)
 );
 
--- =====================================
--- TABLE : BASE_ETABLISSEMENT_MODULES
--- =====================================
--- Description : Modules autorisés par établissement selon la licence
-CREATE TABLE base_etablissement_modules (
-  -- Clé primaire
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  
-  -- Multi-tenant
-  etablissement_id UUID NOT NULL,
-  module_id UUID NOT NULL,
-  
-  -- Configuration
-  est_actif BOOLEAN DEFAULT TRUE,
-  date_activation TIMESTAMP DEFAULT NOW(),
-  date_desactivation TIMESTAMP,
-  
-  -- Métadonnées standards
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  activated_by UUID,
-  
-  -- Contraintes
-  CONSTRAINT UQ_base_etablissement_modules_etablissement_module UNIQUE (etablissement_id, module_id),
-  CONSTRAINT FK_base_etablissement_modules_etablissement FOREIGN KEY (etablissement_id) REFERENCES base_etablissement(id),
-  CONSTRAINT FK_base_etablissement_modules_module FOREIGN KEY (module_id) REFERENCES base_module(id),
-  CONSTRAINT FK_base_etablissement_modules_activated_by FOREIGN KEY (activated_by) REFERENCES user_utilisateur(id)
-);
-
 
 COMMENT ON TABLE base_etablissement IS 'Table principale établissement avec configuration mono-tenant';
 COMMENT ON TABLE base_module IS 'Modules métier avec distinction back-office/front-office';
@@ -371,11 +337,5 @@ CREATE TRIGGER trigger_base_module_updated_at
 -- Trigger pour base_rubrique
 CREATE TRIGGER trigger_base_rubrique_updated_at
     BEFORE UPDATE ON base_rubrique
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
--- Trigger pour base_etablissement_modules
-CREATE TRIGGER trigger_base_etablissement_modules_updated_at
-    BEFORE UPDATE ON base_etablissement_modules
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();

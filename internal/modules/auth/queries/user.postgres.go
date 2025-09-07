@@ -2,14 +2,14 @@ package queries
 
 // UserQueries regroupe toutes les requêtes SQL pour la gestion des utilisateurs
 var UserQueries = struct {
-	GetByIdentifiant           string
-	GetUserPermissions         string
-	GetSetupState              string
-	CreateSession              string
-	GetSessionByToken          string
-	DeleteSession              string
-	GetActiveSessionsByUserID  string
-	CleanExpiredSessions       string
+	GetByIdentifiant          string
+	GetUserPermissions        string
+	GetSetupState             string
+	CreateSession             string
+	GetSessionByToken         string
+	DeleteSession             string
+	GetActiveSessionsByUserID string
+	CleanExpiredSessions      string
 }{
 	/**
 	 * Récupère un utilisateur par identifiant et établissement
@@ -129,20 +129,8 @@ var UserQueries = struct {
 	`,
 
 	/**
-	 * Récupère l'état du setup pour un établissement (back-office uniquement)
-	 * Paramètres: $1 = etablissement_id
-	 */
-	GetSetupState: `
-		SELECT 
-			setup_est_termine,
-			setup_etape
-		FROM base_etablissement
-		WHERE id = $1
-	`,
-
-	/**
 	 * Crée une nouvelle session dans PostgreSQL (fallback)
-	 * Paramètres: $1 = token, $2 = user_id, $3 = etablissement_id, $4 = client_type, 
+	 * Paramètres: $1 = token, $2 = user_id, $3 = etablissement_id, $4 = client_type,
 	 *             $5 = ip_address, $6 = user_agent, $7 = expires_at
 	 */
 	CreateSession: `

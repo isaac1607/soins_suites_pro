@@ -2,21 +2,21 @@ package queries
 
 // SystemQueries regroupe toutes les requêtes SQL pour le module System
 var SystemQueries = struct {
-	GetEstablishmentInfo     string
-	GetLicenseInfo           string
-	GetAuthorizedModules     string
+	GetEstablishmentInfo          string
+	GetLicenseInfo                string
+	GetAuthorizedModules          string
 	GetAuthorizedModulesOnly      string
 	GetSystemConfiguration        string
 	GetEstablishmentByAppInstance string
-	CheckSyncStatus              string
-	UpdateSyncStatus             string
-	GetCompleteEstablishmentData string
-	GetCompleteModulesData       string
-	InsertEstablishment          string
-	InsertLicense                string
-	InsertModule                 string
-	InsertRubrique               string
-	InsertSuperAdmin             string
+	CheckSyncStatus               string
+	UpdateSyncStatus              string
+	GetCompleteEstablishmentData  string
+	GetCompleteModulesData        string
+	InsertEstablishment           string
+	InsertLicense                 string
+	InsertModule                  string
+	InsertRubrique                string
+	InsertSuperAdmin              string
 }{
 	/**
 	 * Récupère les informations complètes de l'établissement
@@ -29,8 +29,6 @@ var SystemQueries = struct {
 			nom,
 			nom_court,
 			ville,
-			setup_est_termine,
-			setup_etape,
 			created_at
 		FROM base_etablissement
 		WHERE id = $1

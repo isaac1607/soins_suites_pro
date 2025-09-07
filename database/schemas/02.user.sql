@@ -52,6 +52,8 @@ CREATE TABLE user_profil_modules (
   profil_template_id UUID NOT NULL,
   module_id UUID NOT NULL,
 
+  est_actif BOOLEAN DEFAULT TRUE,
+  
   -- Accès modules
   acces_toutes_rubriques BOOLEAN DEFAULT TRUE,
 
@@ -62,7 +64,7 @@ CREATE TABLE user_profil_modules (
   -- Contraintes
   CONSTRAINT UQ_user_profil_modules_profil_module UNIQUE (profil_template_id, module_id, etablissement_id),
   CONSTRAINT FK_user_profil_modules_profil FOREIGN KEY (profil_template_id) REFERENCES user_profil_template(id) ON DELETE CASCADE,
-  CONSTRAINT FK_user_profil_modules_module FOREIGN KEY (module_id) REFERENCES base_module(id)
+  CONSTRAINT FK_user_profil_modules_module FOREIGN KEY (module_id) REFERENCES base_module(id),
   CONSTRAINT FK_user_profil_modules_etablissement FOREIGN KEY (etablissement_id) REFERENCES base_etablissement(id),
   CONSTRAINT FK_user_profil_modules_created_by FOREIGN KEY (created_by) REFERENCES user_utilisateur(id)
 );
@@ -82,6 +84,8 @@ CREATE TABLE user_profil_rubriques (
   profil_template_id UUID NOT NULL,
   module_id UUID NOT NULL,
   rubrique_id UUID NOT NULL,
+
+  est_actif BOOLEAN DEFAULT TRUE,
 
   -- Métadonnées standards
   created_at TIMESTAMP DEFAULT NOW(),

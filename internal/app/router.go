@@ -6,7 +6,7 @@ import (
 	"soins-suite-core/internal/app/config"
 	"soins-suite-core/internal/infrastructure/database/postgres"
 	redisInfra "soins-suite-core/internal/infrastructure/database/redis"
-	authMiddleware "soins-suite-core/internal/shared/middleware/authentication"
+	tenant "soins-suite-core/internal/shared/middleware/tenant"
 	loggingmw "soins-suite-core/internal/shared/middleware/logging"
 
 	// securitymw "soins-suite-core/internal/shared/middleware/security"
@@ -22,9 +22,9 @@ func NewRouter(cfg *config.Config, pgClient *postgres.Client, redisClient *redis
 	// Create router without default middleware for custom configuration
 	r := gin.New()
 
-	// Initialize authentication middlewares
-	establishmentMW := authMiddleware.NewEstablishmentMiddleware(pgClient, redisClient)
-	licenseMW := authMiddleware.NewLicenseMiddleware(pgClient, redisClient)
+	// Initialize tenant middlewares
+	establishmentMW := tenant.NewEstablishmentMiddleware(pgClient, redisClient)
+	licenseMW := tenant.NewLicenseMiddleware(pgClient, redisClient)
 
 	// Add custom middlewares dans l'ordre d'importance
 	r.Use(loggingmw.NewGinLoggerWithDefaults(cfg.Environment))
@@ -104,7 +104,7 @@ func NewRouter(cfg *config.Config, pgClient *postgres.Client, redisClient *redis
 					return
 				}
 
-				establishment, ok := establishmentValue.(authMiddleware.EstablishmentContext)
+				establishment, ok := establishmentValue.(tenant.EstablishmentContext)
 				if !ok {
 					c.JSON(http.StatusInternalServerError, gin.H{
 						"error": "Contexte établissement invalide",
@@ -135,8 +135,8 @@ func NewRouter(cfg *config.Config, pgClient *postgres.Client, redisClient *redis
 					return
 				}
 
-				establishment, _ := establishmentValue.(authMiddleware.EstablishmentContext)
-				license, ok := licenseValue.(authMiddleware.LicenseContext)
+				establishment, _ := establishmentValue.(tenant.EstablishmentContext)
+				license, ok := licenseValue.(tenant.LicenseContext)
 				if !ok {
 					c.JSON(http.StatusInternalServerError, gin.H{
 						"error": "Contexte licence invalide",
@@ -169,8 +169,8 @@ func NewRouter(cfg *config.Config, pgClient *postgres.Client, redisClient *redis
 				establishmentValue, _ := c.Get("establishment")
 				licenseValue, _ := c.Get("license")
 
-				establishment, _ := establishmentValue.(authMiddleware.EstablishmentContext)
-				license, _ := licenseValue.(authMiddleware.LicenseContext)
+				establishment, _ := establishmentValue.(tenant.EstablishmentContext)
+				license, _ := licenseValue.(tenant.LicenseContext)
 
 				c.JSON(http.StatusOK, gin.H{
 					"success": true,
@@ -190,8 +190,8 @@ func NewRouter(cfg *config.Config, pgClient *postgres.Client, redisClient *redis
 				establishmentValue, _ := c.Get("establishment")
 				licenseValue, _ := c.Get("license")
 
-				establishment, _ := establishmentValue.(authMiddleware.EstablishmentContext)
-				license, _ := licenseValue.(authMiddleware.LicenseContext)
+				establishment, _ := establishmentValue.(tenant.EstablishmentContext)
+				license, _ := licenseValue.(tenant.LicenseContext)
 
 				c.JSON(http.StatusOK, gin.H{
 					"success": true,

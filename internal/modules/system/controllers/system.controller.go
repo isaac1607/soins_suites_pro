@@ -5,7 +5,7 @@ import (
 
 	"soins-suite-core/internal/modules/system/dto"
 	"soins-suite-core/internal/modules/system/services"
-	middlewareAuth "soins-suite-core/internal/shared/middleware/authentication"
+	middlewareAuth "soins-suite-core/internal/shared/middleware/tenant"
 
 	"github.com/gin-gonic/gin"
 )

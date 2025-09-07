@@ -1,7 +1,5 @@
 package dto
 
-import "time"
-
 // LoginRequest représente la requête de connexion
 type LoginRequest struct {
 	Identifiant string `json:"identifiant" validate:"required,min=3,max=50"`

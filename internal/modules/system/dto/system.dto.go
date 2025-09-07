@@ -6,14 +6,12 @@ import (
 
 // EstablishmentInfoDTO représente les informations de l'établissement
 type EstablishmentInfoDTO struct {
-	ID             string    `json:"id"`
-	Code           string    `json:"code"`
-	Nom            string    `json:"nom"`
-	NomCourt       string    `json:"nom_court"`
-	Ville          string    `json:"ville"`
-	SetupTermine   bool      `json:"setup_termine"`
-	SetupEtape     int       `json:"setup_etape"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID        string    `json:"id"`
+	Code      string    `json:"code"`
+	Nom       string    `json:"nom"`
+	NomCourt  string    `json:"nom_court"`
+	Ville     string    `json:"ville"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // LicenseInfoDTO représente les informations de licence
@@ -39,11 +37,11 @@ type ModuleInfoDTO struct {
 
 // AuthorizedModuleDTO représente un module autorisé pour la navigation
 type AuthorizedModuleDTO struct {
-	CodeModule           string `json:"code_module"`
-	NomStandard          string `json:"nom_standard"`
-	EstMedical           bool   `json:"est_medical"`
-	PeutPrendreTicket    bool   `json:"peut_prendre_ticket"`
-	EstModuleBackOffice  bool   `json:"est_module_back_office"`
+	CodeModule          string `json:"code_module"`
+	NomStandard         string `json:"nom_standard"`
+	EstMedical          bool   `json:"est_medical"`
+	PeutPrendreTicket   bool   `json:"peut_prendre_ticket"`
+	EstModuleBackOffice bool   `json:"est_module_back_office"`
 }
 
 // SystemConfigurationDTO représente la configuration système
@@ -57,10 +55,10 @@ type SystemConfigurationDTO struct {
 
 // SystemInfoResponse représente la réponse complète de /api/v1/system/info
 type SystemInfoResponse struct {
-	Etablissement        EstablishmentInfoDTO      `json:"etablissement"`
-	Licence              LicenseInfoDTO            `json:"licence"`
-	ModulesDisponibles   []ModuleInfoDTO           `json:"modules_disponibles"`
-	Configuration        SystemConfigurationDTO   `json:"configuration"`
+	Etablissement      EstablishmentInfoDTO   `json:"etablissement"`
+	Licence            LicenseInfoDTO         `json:"licence"`
+	ModulesDisponibles []ModuleInfoDTO        `json:"modules_disponibles"`
+	Configuration      SystemConfigurationDTO `json:"configuration"`
 }
 
 // StandardAPIResponse représente la structure standard des réponses API
@@ -111,35 +109,35 @@ type SyncOfflineResponse struct {
 
 // EstablissementSyncDTO pour la synchronisation
 type EstablissementSyncDTO struct {
-	ID                         string `json:"id"`
-	AppInstance                string `json:"app_instance"`
-	EtablissementCode          string `json:"etablissement_code"`
-	Nom                        string `json:"nom"`
-	NomCourt                   string `json:"nom_court"`
-	AdresseComplete            string `json:"adresse_complete"`
-	Ville                      string `json:"ville"`
-	Commune                    string `json:"commune"`
-	TelephonePrincipal         string `json:"telephone_principal"`
-	Email                      string `json:"email"`
-	DureeValiditeTicketJours   int    `json:"duree_validite_ticket_jours"`
-	NbSouchesParCaisse         int    `json:"nb_souches_par_caisse"`
-	GardeHeureDebut            string `json:"garde_heure_debut"`
-	GardeHeureFin              string `json:"garde_heure_fin"`
-	CreatedAt                  string `json:"created_at"`
+	ID                       string `json:"id"`
+	AppInstance              string `json:"app_instance"`
+	EtablissementCode        string `json:"etablissement_code"`
+	Nom                      string `json:"nom"`
+	NomCourt                 string `json:"nom_court"`
+	AdresseComplete          string `json:"adresse_complete"`
+	Ville                    string `json:"ville"`
+	Commune                  string `json:"commune"`
+	TelephonePrincipal       string `json:"telephone_principal"`
+	Email                    string `json:"email"`
+	DureeValiditeTicketJours int    `json:"duree_validite_ticket_jours"`
+	NbSouchesParCaisse       int    `json:"nb_souches_par_caisse"`
+	GardeHeureDebut          string `json:"garde_heure_debut"`
+	GardeHeureFin            string `json:"garde_heure_fin"`
+	CreatedAt                string `json:"created_at"`
 }
 
 // LicenceSyncDTO pour la synchronisation
 type LicenceSyncDTO struct {
-	ID                     string   `json:"id"`
-	EtablissementID        string   `json:"etablissement_id"`
-	ModeDeploiement        string   `json:"mode_deploiement"`
-	TypeLicence            string   `json:"type_licence"`
-	ModulesAutorises       []string `json:"modules_autorises"`
-	DateActivation         string   `json:"date_activation"`
-	DateExpiration         *string  `json:"date_expiration"`
-	Statut                 string   `json:"statut"`
-	SyncInitialComplete    bool     `json:"sync_initial_complete"`
-	CreatedAt              string   `json:"created_at"`
+	ID                  string   `json:"id"`
+	EtablissementID     string   `json:"etablissement_id"`
+	ModeDeploiement     string   `json:"mode_deploiement"`
+	TypeLicence         string   `json:"type_licence"`
+	ModulesAutorises    []string `json:"modules_autorises"`
+	DateActivation      string   `json:"date_activation"`
+	DateExpiration      *string  `json:"date_expiration"`
+	Statut              string   `json:"statut"`
+	SyncInitialComplete bool     `json:"sync_initial_complete"`
+	CreatedAt           string   `json:"created_at"`
 }
 
 // RubriqueDTO pour les rubriques des modules
@@ -155,42 +153,42 @@ type RubriqueDTO struct {
 
 // ModuleSyncDTO pour la synchronisation avec rubriques
 type ModuleSyncDTO struct {
-	ID                    string        `json:"id"`
-	NumeroModule          int           `json:"numero_module"`
-	CodeModule            string        `json:"code_module"`
-	NomStandard           string        `json:"nom_standard"`
-	Description           string        `json:"description"`
-	EstMedical            bool          `json:"est_medical"`
-	EstObligatoire        bool          `json:"est_obligatoire"`
-	EstActif              bool          `json:"est_actif"`
-	EstModuleBackOffice   bool          `json:"est_module_back_office"`
-	PeutPrendreTicket     bool          `json:"peut_prendre_ticket"`
-	Rubriques             []RubriqueDTO `json:"rubriques"`
+	ID                  string        `json:"id"`
+	NumeroModule        int           `json:"numero_module"`
+	CodeModule          string        `json:"code_module"`
+	NomStandard         string        `json:"nom_standard"`
+	Description         string        `json:"description"`
+	EstMedical          bool          `json:"est_medical"`
+	EstObligatoire      bool          `json:"est_obligatoire"`
+	EstActif            bool          `json:"est_actif"`
+	EstModuleBackOffice bool          `json:"est_module_back_office"`
+	PeutPrendreTicket   bool          `json:"peut_prendre_ticket"`
+	Rubriques           []RubriqueDTO `json:"rubriques"`
 }
 
 // SuperAdminSyncDTO pour l'administrateur
 type SuperAdminSyncDTO struct {
-	ID                  string `json:"id"`
-	EtablissementID     string `json:"etablissement_id"`
-	Identifiant         string `json:"identifiant"`
-	Nom                 string `json:"nom"`
-	Prenoms             string `json:"prenoms"`
-	Telephone           string `json:"telephone"`
-	PasswordHash        string `json:"password_hash"`
-	Salt                string `json:"salt"`
-	MustChangePassword  bool   `json:"must_change_password"`
-	EstAdmin            bool   `json:"est_admin"`
-	TypeAdmin           string `json:"type_admin"`
-	EstAdminTir         bool   `json:"est_admin_tir"`
-	EstTemporaire       bool   `json:"est_temporaire"`
-	Statut              string `json:"statut"`
-	CreatedAt           string `json:"created_at"`
+	ID                 string `json:"id"`
+	EtablissementID    string `json:"etablissement_id"`
+	Identifiant        string `json:"identifiant"`
+	Nom                string `json:"nom"`
+	Prenoms            string `json:"prenoms"`
+	Telephone          string `json:"telephone"`
+	PasswordHash       string `json:"password_hash"`
+	Salt               string `json:"salt"`
+	MustChangePassword bool   `json:"must_change_password"`
+	EstAdmin           bool   `json:"est_admin"`
+	TypeAdmin          string `json:"type_admin"`
+	EstAdminTir        bool   `json:"est_admin_tir"`
+	EstTemporaire      bool   `json:"est_temporaire"`
+	Statut             string `json:"statut"`
+	CreatedAt          string `json:"created_at"`
 }
 
 // SyncMetadataDTO pour les métadonnées de synchronisation
 type SyncMetadataDTO struct {
-	SyncTimestamp   string `json:"sync_timestamp"`
-	TotalModules    int    `json:"total_modules"`
-	TotalRubriques  int    `json:"total_rubriques"`
-	VersionDonnees  string `json:"version_donnees"`
+	SyncTimestamp  string `json:"sync_timestamp"`
+	TotalModules   int    `json:"total_modules"`
+	TotalRubriques int    `json:"total_rubriques"`
+	VersionDonnees string `json:"version_donnees"`
 }
