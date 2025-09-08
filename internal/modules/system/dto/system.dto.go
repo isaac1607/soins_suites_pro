@@ -28,6 +28,7 @@ type LicenseInfoDTO struct {
 
 // ModuleInfoDTO représente un module disponible
 type ModuleInfoDTO struct {
+	ID                string `json:"id"`
 	CodeModule        string `json:"code_module"`
 	NomStandard       string `json:"nom_standard"`
 	EstMedical        bool   `json:"est_medical"`

@@ -60,6 +60,7 @@ var SystemQueries = struct {
 	 */
 	GetAuthorizedModules: `
 		SELECT
+			m.id,
 			m.code_module,
 			m.nom_standard,
 			m.est_medical,

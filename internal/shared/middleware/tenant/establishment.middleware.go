@@ -2,10 +2,10 @@ package tenant
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"regexp"
 
+	"github.com/jackc/pgx/v5"
 	"soins-suite-core/internal/infrastructure/database/postgres"
 	redisInfra "soins-suite-core/internal/infrastructure/database/redis"
 	"soins-suite-core/internal/shared/middleware/tenant/queries"
@@ -68,7 +68,7 @@ func (m *EstablishmentMiddleware) Handler() gin.HandlerFunc {
 			var err error
 			establishment, err = m.getEstablishmentFromDB(c.Request.Context(), establishmentCode)
 			if err != nil {
-				if err == sql.ErrNoRows {
+				if err == pgx.ErrNoRows {
 					// Cas normal : établissement n'existe pas
 					m.respondError(c, 460, "ESTABLISHMENT_NOT_FOUND",
 						"Établissement non trouvé", map[string]interface{}{

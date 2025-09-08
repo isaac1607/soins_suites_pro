@@ -85,6 +85,30 @@ soins-suite-core/
 │   │       └── client.go            # Client HTTP externe
 │   │
 │   └── modules/                     # Modules métier organisés par interface
+│       ├── core-services/           # Services métier centralisés (sans endpoints)
+│       │   ├── establishment/       # Logique établissement réutilisable
+│       │   │   ├── establishment-core.module.go
+│       │   │   ├── services/
+│       │   │   │   ├── establishment-validation.service.go  # Validation licence établissement
+│       │   │   │   ├── establishment-update.service.go      # Mise à jour établissement
+│       │   │   │   └── license-validation.service.go        # Validation licences
+│       │   │   ├── dto/
+│       │   │   │   └── establishment-core.dto.go
+│       │   │   └── queries/
+│       │   │       └── establishment-core.postgres.go
+│       │   │
+│       │   ├── patient/             # Logique patient réutilisable
+│       │   │   ├── patient-core.module.go
+│       │   │   ├── services/
+│       │   │   │   ├── patient-info.service.go              # Informations patient
+│       │   │   │   └── patient-validation.service.go        # Validation patient
+│       │   │   ├── dto/
+│       │   │   │   └── patient-core.dto.go
+│       │   │   └── queries/
+│       │   │       └── patient-core.postgres.go
+│       │   │
+│       │   └── core-services.module.go  # Module Fx global core-services
+│       │
 │       ├── auth/                    # Module Authentification (transversal)
 │       │   ├── auth.module.go       # Module Fx Auth
 │       │   ├── controllers/
@@ -546,6 +570,9 @@ var AppModule = fx.Options(
     // Middlewares partagés (après infrastructure, avant modules métier)
     middleware.Module,
 
+    // Core Services (services métier centralisés)
+    core_services.Module,
+
     // Modules métier
     system.Module,
     auth.Module,
@@ -574,6 +601,7 @@ var AppModule = fx.Options(
 
 ### ✅ **Séparation Claire des Responsabilités**
 
+- **core-services/** : Services métier centralisés réutilisables (sans endpoints)
 - **system/** : Gestion des licences et configuration système
 - **auth/** : Authentification transversale
 - **back-office/** : Administration (établissements, utilisateurs)
@@ -599,6 +627,80 @@ var AppModule = fx.Options(
 - Modules indépendants pour tests et déploiement
 
 Cette architecture finale combine le meilleur de NestJS avec la puissance d'Uber Fx et la performance de Go !
+
+---
+
+## 🔧 **Core Services : Services Métier Centralisés**
+
+### 🎯 **Concept et Utilisation**
+
+Les **core-services** sont des services métier **sans endpoints** (pas de controllers) qui implémentent la logique business réutilisable entre plusieurs modules.
+
+**Cas d'usage typiques :**
+- **Établissement** : Validation de licence, mise à jour d'établissement → utilisé par back-office et interfaces admin
+- **Patient** : Informations patient, validation → utilisé par différents modules front-office
+- **Validation** : Règles métier complexes partagées
+
+### 📁 **Structure Core Service**
+
+```
+core-services/establishment/
+├── establishment-core.module.go    # Module Fx (PAS de routes)
+├── services/                       # Services métier purs
+│   ├── establishment-validation.service.go
+│   ├── establishment-update.service.go
+│   └── license-validation.service.go
+├── dto/                            # DTOs spécialisés
+│   └── establishment-core.dto.go
+└── queries/                        # Requêtes SQL natives
+    └── establishment-core.postgres.go
+```
+
+### 🔄 **Template Core Service Module**
+
+```go
+// internal/modules/core-services/establishment/establishment-core.module.go
+package establishment
+
+import "go.uber.org/fx"
+
+// Module regroupe les services métier établissement (SANS endpoints)
+var Module = fx.Options(
+    // Services métier uniquement
+    fx.Provide(NewEstablishmentValidationService),
+    fx.Provide(NewEstablishmentUpdateService),
+    fx.Provide(NewLicenseValidationService),
+    
+    // PAS de controllers, PAS de routes
+)
+```
+
+### 💡 **Utilisation dans les Modules**
+
+```go
+// Dans back-office/establishment/services/
+type EstablishmentManagementService struct {
+    // ✅ Injection des core-services
+    establishmentValidator *establishment_core.EstablishmentValidationService
+    licenseValidator      *establishment_core.LicenseValidationService
+    db                    *postgres.Client
+}
+
+// Dans front-office/patient/services/
+type PatientViewService struct {
+    // ✅ Injection des core-services
+    patientCore *patient_core.PatientInfoService
+    db          *postgres.Client
+}
+```
+
+### ✅ **Avantages Core Services**
+
+1. **DRY** : Évite la duplication de logique métier
+2. **Cohérence** : Logique business unifiée entre modules
+3. **Réutilisabilité** : Services injectés où nécessaire
+4. **Séparation** : Logique métier ≠ endpoints HTTP
+5. **Testabilité** : Services purs facilement testables
 
 ---
 

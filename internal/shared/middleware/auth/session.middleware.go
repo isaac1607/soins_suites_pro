@@ -47,7 +47,7 @@ func (m *SessionMiddleware) Handler() gin.HandlerFunc {
 		token := m.extractBearerToken(authHeader)
 		
 		if token == "" {
-			m.respondError(c, http.StatusUnauthorized, "TOKEN_REQUIRED", 
+			m.respondError(c, 480, "TOKEN_REQUIRED", 
 				"Token d'authentification requis", map[string]interface{}{
 					"header_format": "Authorization: Bearer {token}",
 				})
@@ -77,11 +77,11 @@ func (m *SessionMiddleware) Handler() gin.HandlerFunc {
 				var statusCode int
 				switch authErr.Code {
 				case "TOKEN_REVOKED":
-					statusCode = 460 // Code custom pour token révoqué
-				case "INVALID_TOKEN":
-					statusCode = 460 // Code custom pour session invalide/expirée
+					statusCode = 480 // Code custom pour token révoqué
+				case "INVALID_TOKEN", "SESSION_EXPIRED", "SESSION_NOT_FOUND":
+					statusCode = 480 // Code custom pour session invalide/expirée
 				default:
-					statusCode = http.StatusUnauthorized
+					statusCode = 480 // Par défaut, utiliser 480 pour tous les problèmes d'authentification
 				}
 
 				m.respondError(c, statusCode, authErr.Code, authErr.Message, authErr.Details)
@@ -89,7 +89,7 @@ func (m *SessionMiddleware) Handler() gin.HandlerFunc {
 			}
 
 			// Erreur technique
-			m.respondError(c, 460, "SESSION_VALIDATION_ERROR",
+			m.respondError(c, 480, "SESSION_VALIDATION_ERROR",
 				"Erreur lors de la validation de la session", map[string]interface{}{
 					"token_format": "Vérifiez le format du token",
 				})

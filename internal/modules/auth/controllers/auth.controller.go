@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
@@ -135,11 +136,15 @@ func (c *AuthController) Login(ctx *gin.Context) {
 			return
 		}
 
-		// Erreur technique
+		// Erreur technique (base de données, schéma, etc.)
+		// Log l'erreur pour investigation mais ne pas exposer les détails techniques
+		log.Printf("Technical error during authentication: %v", err)
+		
 		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Erreur interne lors de l'authentification",
+			"error": "Erreur technique temporaire",
 			"details": map[string]interface{}{
-				"code": "INTERNAL_ERROR",
+				"code": "TECHNICAL_ERROR",
+				"message": "Un problème technique empêche l'authentification. Veuillez réessayer ou contacter le support.",
 			},
 		})
 		return
@@ -278,6 +283,106 @@ func (c *AuthController) Me(ctx *gin.Context) {
 
 	// Succès
 	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
+	})
+}
+
+// ChangePassword - PUT /api/v1/auth/change-password
+func (c *AuthController) ChangePassword(ctx *gin.Context) {
+	var req dto.ChangePasswordRequest
+
+	// Bind JSON
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(400, gin.H{
+			"error": "Données invalides",
+			"details": gin.H{
+				"code": "INVALID_REQUEST_FORMAT",
+			},
+		})
+		return
+	}
+
+	// Validation personnalisée
+	if len(req.CurrentPassword) < 8 {
+		ctx.JSON(400, gin.H{
+			"error": "Mot de passe actuel requis (minimum 8 caractères)",
+			"details": gin.H{
+				"code": "INVALID_CURRENT_PASSWORD",
+			},
+		})
+		return
+	}
+
+	if len(req.NewPassword) < 8 || len(req.NewPassword) > 100 {
+		ctx.JSON(400, gin.H{
+			"error": "Le nouveau mot de passe doit contenir entre 8 et 100 caractères",
+			"details": gin.H{
+				"code": "INVALID_NEW_PASSWORD",
+			},
+		})
+		return
+	}
+
+	if req.NewPassword != req.ConfirmPassword {
+		ctx.JSON(400, gin.H{
+			"error": "La confirmation du mot de passe ne correspond pas",
+			"details": gin.H{
+				"code": "PASSWORD_MISMATCH",
+			},
+		})
+		return
+	}
+
+	// Récupérer l'utilisateur depuis le contexte session
+	userID := ctx.GetString("user_id")
+	establishmentID := ctx.GetString("establishment_id")
+
+	if userID == "" || establishmentID == "" {
+		ctx.JSON(500, gin.H{
+			"error": "Contexte de session manquant",
+			"details": gin.H{
+				"code": "SESSION_CONTEXT_MISSING",
+			},
+		})
+		return
+	}
+
+	// Appeler le service
+	result, err := c.authService.ChangePassword(ctx.Request.Context(), userID, establishmentID, req)
+	if err != nil {
+		if authErr, ok := err.(*dto.AuthError); ok {
+			var statusCode int
+			switch authErr.Code {
+			case "PASSWORD_MISMATCH":
+				statusCode = 400
+			case "INVALID_CURRENT_PASSWORD":
+				statusCode = 400
+			case "USER_NOT_FOUND":
+				statusCode = 404
+			default:
+				statusCode = 500
+			}
+
+			ctx.JSON(statusCode, gin.H{
+				"error": authErr.Message,
+				"details": gin.H{
+					"code": authErr.Code,
+				},
+			})
+			return
+		}
+
+		ctx.JSON(500, gin.H{
+			"error": "Erreur technique lors du changement de mot de passe",
+			"details": gin.H{
+				"code": "TECHNICAL_ERROR",
+			},
+		})
+		return
+	}
+
+	ctx.JSON(200, gin.H{
 		"success": true,
 		"data":    result,
 	})

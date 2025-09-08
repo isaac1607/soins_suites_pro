@@ -6,7 +6,9 @@ import (
 	"soins-suite-core/internal/infrastructure/database"
 	"soins-suite-core/internal/infrastructure/logger"
 	"soins-suite-core/internal/shared/middleware"
+	"soins-suite-core/internal/modules/auth"
 	"soins-suite-core/internal/modules/system"
+	"soins-suite-core/internal/modules/back-office/users"
 
 	"go.uber.org/fx"
 )
@@ -33,7 +35,9 @@ var AppModule = fx.Options(
 	middleware.Module,
 
 	// Modules métier
+	auth.Module,
 	system.Module,
+	users.Module,
 
 	// Bootstrap System - Providers
 	fx.Provide(bootstrap.NewBootstrapExtensionManager),

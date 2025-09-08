@@ -7,8 +7,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// RecoveryHandler type spécifique pour Fx
+type RecoveryHandler gin.HandlerFunc
+
 // RecoveryMiddleware capture les panics et retourne une réponse d'erreur propre
-func RecoveryMiddleware() gin.HandlerFunc {
+func RecoveryMiddleware() RecoveryHandler {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {

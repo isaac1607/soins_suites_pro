@@ -238,6 +238,29 @@ type Service struct {
 
 // ❌ INTERDIT - Accès direct au pool
 // r.db.Pool().QueryRow() ❌
+
+// ❌ INTERDIT - Package database/sql
+// import "database/sql" ❌
+// sql.ErrNoRows ❌ → Utiliser pgx.ErrNoRows ✅
+// sql.NullString ❌ → Utiliser *string ou pgx types ✅
+```
+
+### Types de Données Recommandés
+
+```go
+// ✅ CORRECT - Types pgx ou pointeurs
+import "github.com/jackc/pgx/v5"
+
+// Gestion erreurs
+if err == pgx.ErrNoRows {
+    return nil, fmt.Errorf("not found")
+}
+
+// Valeurs nullable
+var name *string           // Au lieu de sql.NullString
+var age *int              // Au lieu de sql.NullInt32
+var active *bool          // Au lieu de sql.NullBool
+var createdAt *time.Time  // Au lieu de sql.NullTime
 ```
 
 ### Gestion d'Erreurs MVP
@@ -258,6 +281,7 @@ func (e *ServiceError) Error() string { return e.Message }
 
 - [ ] **Modules Fx** : `.module.go`, providers corrects
 - [ ] **Architecture MVP** : Services → Queries → Client PostgreSQL centralisé
+- [ ] **Base de données** : `pgx.ErrNoRows` et pointeurs au lieu de `database/sql`
 - [ ] **Redis** : Pattern `soins_suite_{etablissement}_{domain}_{context}:{id}` + helpers
 - [ ] **API** : Format success/error respecté
 - [ ] **Logging** : Gin par défaut uniquement

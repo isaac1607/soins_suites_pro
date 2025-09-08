@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
 
 	"soins-suite-core/internal/app/config"
@@ -58,7 +58,7 @@ func (s *SystemService) GetSystemInfo(ctx context.Context, establishmentID strin
 	license, err := s.getLicenseInfo(ctx, establishmentID)
 	if err != nil {
 		// Si pas de licence trouvée, on continue avec une licence vide
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			// Licence par défaut pour établissement sans licence
 			license = &dto.LicenseInfoDTO{
 				ID:               "",
@@ -104,7 +104,7 @@ func (s *SystemService) getEstablishmentInfo(ctx context.Context, establishmentI
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return nil, fmt.Errorf("établissement non trouvé: %s", establishmentID)
 		}
 		return nil, fmt.Errorf("erreur base de données: %w", err)
@@ -130,9 +130,9 @@ func (s *SystemService) getLicenseInfo(ctx context.Context, establishmentID stri
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			// Pas de licence trouvée - Retourner sql.ErrNoRows pour gestion dans GetSystemInfo
-			return nil, sql.ErrNoRows
+			return nil, pgx.ErrNoRows
 		}
 		return nil, fmt.Errorf("erreur base de données: %w", err)
 	}
@@ -201,6 +201,7 @@ func (s *SystemService) getAuthorizedModules(ctx context.Context, establishmentI
 	for rows.Next() {
 		var module dto.ModuleInfoDTO
 		err := rows.Scan(
+			&module.ID,
 			&module.CodeModule,
 			&module.NomStandard,
 			&module.EstMedical,
@@ -233,7 +234,7 @@ func (s *SystemService) getSystemConfiguration(ctx context.Context, establishmen
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return nil, fmt.Errorf("configuration non trouvée pour l'établissement: %s", establishmentID)
 		}
 		return nil, fmt.Errorf("erreur base de données: %w", err)
@@ -497,7 +498,7 @@ func (s *SystemService) SynchronizeOfflineData(ctx context.Context, req dto.Sync
 		&establishmentID, nil, nil, nil, nil,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return nil, &ServiceError{
 				Type:    "not_found",
 				Code:    "ESTABLISHMENT_OR_INSTANCE_NOT_FOUND",
@@ -513,11 +514,11 @@ func (s *SystemService) SynchronizeOfflineData(ctx context.Context, req dto.Sync
 
 	// Vérifier le statut de synchronisation
 	var syncComplete bool
-	var syncDate sql.NullTime
+	var syncDate *time.Time
 	err = s.db.QueryRow(ctx, queries.SystemQueries.CheckSyncStatus, establishmentID).Scan(
 		&syncComplete, &syncDate,
 	)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && err != pgx.ErrNoRows {
 		return nil, fmt.Errorf("erreur vérification sync status: %w", err)
 	}
 
@@ -529,7 +530,7 @@ func (s *SystemService) SynchronizeOfflineData(ctx context.Context, req dto.Sync
 			Details: map[string]interface{}{
 				"app_instance":       req.AppInstance,
 				"code_etablissement": establishmentCode,
-				"date_derniere_sync": syncDate.Time.Format(time.RFC3339),
+				"date_derniere_sync": syncDate.Format(time.RFC3339),
 			},
 		}
 	}
@@ -693,9 +694,9 @@ func (s *SystemService) getCompleteModulesData(ctx context.Context) ([]dto.Modul
 		var moduleID, codeModule, nomStandard, description string
 		var numeroModule int
 		var estMedical, estObligatoire, estActif, estModuleBackOffice, peutPrendreTicket bool
-		var rubriqueID, codeRubrique, rubriqueNom, rubriqueDescription sql.NullString
-		var ordreAffichage sql.NullInt32
-		var rubriqueEstObligatoire, rubriqueEstActif sql.NullBool
+		var rubriqueID, codeRubrique, rubriqueNom, rubriqueDescription *string
+		var ordreAffichage *int32
+		var rubriqueEstObligatoire, rubriqueEstActif *bool
 
 		err := rows.Scan(
 			&moduleID, &numeroModule, &codeModule, &nomStandard, &description,
@@ -725,15 +726,15 @@ func (s *SystemService) getCompleteModulesData(ctx context.Context) ([]dto.Modul
 		}
 
 		// Ajouter la rubrique si elle existe
-		if rubriqueID.Valid {
+		if rubriqueID != nil {
 			rubrique := dto.RubriqueDTO{
-				ID:             rubriqueID.String,
-				CodeRubrique:   codeRubrique.String,
-				Nom:            rubriqueNom.String,
-				Description:    rubriqueDescription.String,
-				OrdreAffichage: int(ordreAffichage.Int32),
-				EstObligatoire: rubriqueEstObligatoire.Bool,
-				EstActif:       rubriqueEstActif.Bool,
+				ID:             *rubriqueID,
+				CodeRubrique:   *codeRubrique,
+				Nom:            *rubriqueNom,
+				Description:    *rubriqueDescription,
+				OrdreAffichage: int(*ordreAffichage),
+				EstObligatoire: *rubriqueEstObligatoire,
+				EstActif:       *rubriqueEstActif,
 			}
 			modulesMap[codeModule].Rubriques = append(modulesMap[codeModule].Rubriques, rubrique)
 		}

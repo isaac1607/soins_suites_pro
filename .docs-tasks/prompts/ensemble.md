@@ -19,9 +19,7 @@ Analyse d'abord ces fichiers essentiels avant toute implémentation :
 
 2. **Spécifications Module Auth**
 
-   - `.docs-tasks/contexte/tasks/authentification/a1.specs.md` - Specs endpoints
-   - `.docs-tasks/contexte/tasks/authentification/a2.middlewares_specs.md` - Specs middlewares
-   - `.docs-tasks/contexte/tasks/authentification/auth-standards.md` - Standards auth
+   - `.docs-tasks/contexte/tasks/authentification/a1.specs.md` - Specs endpoints RUBRIQUE GESTION_COMPTES
 
 3. **Schémas Base de Données**
 
@@ -35,8 +33,11 @@ Analyse d'abord ces fichiers essentiels avant toute implémentation :
 
 5. **Code Existant**
    - `internal/shared/middleware/logging/logger.go`
-   - `internal/shared/middleware/authentication/establishment.middleware.go`
-   - `internal/shared/middleware/authentication/license.middleware.go`
+   - `internal/shared/middleware/tenant/establishment.middleware.go`
+   - `internal/shared/middleware/tenant/license.middleware.go`
+   - `internal/shared/middleware/auth/session.middleware.go`
+   - `internal/shared/middleware/auth/permission.middleware.go`
+   - `internal/shared/middleware/auth/middleware.go`
    - `internal/infrastructure/database/postgres/client.go`
    - `internal/infrastructure/database/redis/client.go`
 

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"go.uber.org/fx"
+	"soins-suite-core/internal/shared/middleware/auth"
 	"soins-suite-core/internal/shared/middleware/core"
 	"soins-suite-core/internal/shared/middleware/security"
 	"soins-suite-core/internal/shared/middleware/tenant"
@@ -16,4 +17,7 @@ var Module = fx.Options(
 	// Tenant middlewares
 	fx.Provide(tenant.NewEstablishmentMiddleware),
 	fx.Provide(tenant.NewLicenseMiddleware),
+
+	// Auth middlewares
+	auth.AuthMiddlewareModule,
 )

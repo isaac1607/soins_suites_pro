@@ -9,11 +9,14 @@ import (
 	"soins-suite-core/internal/app/config"
 )
 
+// CORSHandler type spécifique pour Fx
+type CORSHandler gin.HandlerFunc
+
 // CORSMiddleware configure les règles CORS pour multi-tenant
-func CORSMiddleware(appConfig *config.Config) gin.HandlerFunc {
+func CORSMiddleware(appConfig *config.Config) CORSHandler {
 	corsConfig := appConfig.GetCORS()
 
-	return cors.New(cors.Config{
+	return CORSHandler(cors.New(cors.Config{
 		AllowOriginFunc: func(origin string) bool {
 			// 1. Autoriser tous les sous-domaines *.soins-suite.tir.ci
 			allowedPattern := regexp.MustCompile(
@@ -58,5 +61,5 @@ func CORSMiddleware(appConfig *config.Config) gin.HandlerFunc {
 
 		// Cache de la réponse preflight
 		MaxAge: time.Duration(corsConfig.MaxAge) * time.Second,
-	})
+	}))
 }

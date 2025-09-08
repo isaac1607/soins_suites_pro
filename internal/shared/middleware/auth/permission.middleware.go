@@ -43,6 +43,7 @@ func (m *PermissionMiddleware) RequireModule(moduleCode string) gin.HandlerFunc 
 		hasAccess, err := m.permissionService.HasModuleAccess(
 			c.Request.Context(),
 			sessionCtx.UserID,
+			sessionCtx.EtablissementID,
 			sessionCtx.EtablissementCode,
 			moduleCode,
 		)
@@ -92,6 +93,7 @@ func (m *PermissionMiddleware) RequireRubrique(moduleCode, rubriqueCode string) 
 		hasAccess, err := m.permissionService.HasRubriqueAccess(
 			c.Request.Context(),
 			sessionCtx.UserID,
+			sessionCtx.EtablissementID,
 			sessionCtx.EtablissementCode,
 			moduleCode,
 			rubriqueCode,
@@ -276,6 +278,7 @@ func (m *PermissionMiddleware) CheckModuleAccess(c *gin.Context, moduleCode stri
 	hasAccess, err := m.permissionService.HasModuleAccess(
 		c.Request.Context(),
 		sessionCtx.UserID,
+		sessionCtx.EtablissementID,
 		sessionCtx.EtablissementCode,
 		moduleCode,
 	)
@@ -298,6 +301,7 @@ func (m *PermissionMiddleware) CheckRubriqueAccess(c *gin.Context, moduleCode, r
 	hasAccess, err := m.permissionService.HasRubriqueAccess(
 		c.Request.Context(),
 		sessionCtx.UserID,
+		sessionCtx.EtablissementID,
 		sessionCtx.EtablissementCode,
 		moduleCode,
 		rubriqueCode,

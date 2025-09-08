@@ -2,15 +2,16 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"soins-suite-core/internal/infrastructure/database/postgres"
 	redisInfra "soins-suite-core/internal/infrastructure/database/redis"
 	"soins-suite-core/internal/modules/auth/dto"
 	"soins-suite-core/internal/modules/auth/queries"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 )
 
 type SessionService struct {
@@ -84,14 +85,14 @@ func (s *SessionService) DeleteSession(ctx context.Context, token, establishment
 func (s *SessionService) DeleteSessionIdempotent(ctx context.Context, token, establishmentCode, userID string) error {
 	// Cette méthode implémente parfaitement les spécifications du logout :
 	// 1. Révocation session Redis
-	// 2. Ajout à blacklist  
+	// 2. Ajout à blacklist
 	// 3. Suppression index utilisateur
 	// Le tout de manière idempotente (pas d'erreur si déjà fait)
 
 	// 1. Ajouter à la blacklist Redis (idempotent)
 	s.blacklistTokenIdempotent(ctx, establishmentCode, token)
 
-	// 2. Supprimer de Redis avec pipeline (idempotent) 
+	// 2. Supprimer de Redis avec pipeline (idempotent)
 	s.deleteSessionRedisIdempotent(ctx, token, establishmentCode, userID)
 
 	// 3. Supprimer de PostgreSQL (idempotent)
@@ -127,7 +128,7 @@ func (s *SessionService) createSessionRedis(ctx context.Context, token string, s
 // getSessionRedis récupère une session depuis Redis
 func (s *SessionService) getSessionRedis(ctx context.Context, token, establishmentCode string) (*dto.SessionData, error) {
 	sessionKey := fmt.Sprintf("soins_suite_%s_auth_session:%s", establishmentCode, token)
-	
+
 	sessionData := s.redisClient.Client().HGetAll(ctx, sessionKey).Val()
 	if len(sessionData) == 0 {
 		return nil, redis.Nil
@@ -182,7 +183,7 @@ func (s *SessionService) deleteSessionRedisIdempotent(ctx context.Context, token
 // createSessionPostgres crée une session dans PostgreSQL
 func (s *SessionService) createSessionPostgres(ctx context.Context, token string, sessionData *dto.SessionData) error {
 	expiresAt, _ := time.Parse(time.RFC3339, sessionData.ExpiresAt)
-	
+
 	return s.db.Exec(ctx, queries.UserQueries.CreateSession,
 		token,
 		sessionData.UserID,
@@ -214,7 +215,7 @@ func (s *SessionService) getSessionPostgres(ctx context.Context, token string) (
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return nil, fmt.Errorf("session non trouvée")
 		}
 		return nil, err
@@ -232,10 +233,10 @@ func (s *SessionService) getSessionPostgres(ctx context.Context, token string) (
 func (s *SessionService) updateLastActivity(ctx context.Context, token, establishmentCode string, session *dto.SessionData) {
 	sessionKey := fmt.Sprintf("soins_suite_%s_auth_session:%s", establishmentCode, token)
 	now := time.Now().Format(time.RFC3339)
-	
+
 	// Mettre à jour Redis
 	s.redisClient.Client().HSet(ctx, sessionKey, "last_activity", now)
-	
+
 	// Mettre à jour PostgreSQL en arrière-plan
 	go func() {
 		s.db.Exec(context.Background(), `
@@ -250,7 +251,7 @@ func (s *SessionService) updateLastActivity(ctx context.Context, token, establis
 func (s *SessionService) blacklistToken(ctx context.Context, establishmentCode, token string) {
 	blacklistKey := fmt.Sprintf("soins_suite_%s_auth_blacklist:%s", establishmentCode, token)
 	revokedAt := fmt.Sprintf("revoked_at:%s", time.Now().Format(time.RFC3339))
-	
+
 	s.redisClient.Set(ctx, blacklistKey, revokedAt, time.Hour)
 }
 
@@ -258,7 +259,7 @@ func (s *SessionService) blacklistToken(ctx context.Context, establishmentCode, 
 func (s *SessionService) blacklistTokenIdempotent(ctx context.Context, establishmentCode, token string) {
 	blacklistKey := fmt.Sprintf("soins_suite_%s_auth_blacklist:%s", establishmentCode, token)
 	revokedAt := fmt.Sprintf("revoked_at:%s", time.Now().Format(time.RFC3339))
-	
+
 	// SET avec TTL - idempotent par nature
 	s.redisClient.Set(ctx, blacklistKey, revokedAt, time.Hour)
 	// Pas de gestion d'erreur - si Redis est down, le token sera quand même invalidé côté PostgreSQL
@@ -267,7 +268,7 @@ func (s *SessionService) blacklistTokenIdempotent(ctx context.Context, establish
 // isTokenBlacklisted vérifie si un token est blacklisté
 func (s *SessionService) isTokenBlacklisted(ctx context.Context, establishmentCode, token string) bool {
 	blacklistKey := fmt.Sprintf("soins_suite_%s_auth_blacklist:%s", establishmentCode, token)
-	
+
 	exists, err := s.redisClient.Exists(ctx, blacklistKey)
 	return err == nil && exists
 }

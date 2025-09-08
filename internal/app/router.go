@@ -6,8 +6,8 @@ import (
 	"soins-suite-core/internal/app/config"
 	"soins-suite-core/internal/infrastructure/database/postgres"
 	redisInfra "soins-suite-core/internal/infrastructure/database/redis"
-	tenant "soins-suite-core/internal/shared/middleware/tenant"
 	loggingmw "soins-suite-core/internal/shared/middleware/logging"
+	tenant "soins-suite-core/internal/shared/middleware/tenant"
 
 	// securitymw "soins-suite-core/internal/shared/middleware/security"
 	// validationmw "soins-suite-core/internal/shared/middleware/validation"
@@ -76,19 +76,12 @@ func NewRouter(cfg *config.Config, pgClient *postgres.Client, redisClient *redis
 		})
 	})
 
-	// API versioning
+	// API versioning - Les routes spécifiques sont gérées par les modules
 	apiV1 := r.Group("/api/v1")
 	{
-		// Auth group
-		auth := apiV1.Group("/auth")
-		{
-			auth.GET("/test", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{
-					"success": true,
-					"data":    gin.H{"message": "Auth endpoint working"},
-				})
-			})
-		}
+		// Auth routes sont gérées par le module auth
+		// System routes sont gérées par le module system  
+		// Users routes sont gérées par le module users
 
 		// Test endpoints pour les middlewares d'authentification
 		middlewareTests := apiV1.Group("/middleware-tests")

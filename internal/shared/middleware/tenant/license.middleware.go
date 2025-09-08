@@ -2,10 +2,10 @@ package tenant
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/gin-gonic/gin"
 	"soins-suite-core/internal/infrastructure/database/postgres"
 	redisInfra "soins-suite-core/internal/infrastructure/database/redis"
@@ -71,7 +71,7 @@ func (m *LicenseMiddleware) Handler() gin.HandlerFunc {
 			var err error
 			license, err = m.getLicenseFromDB(c.Request.Context(), establishment.ID)
 			if err != nil {
-				if err == sql.ErrNoRows {
+				if err == pgx.ErrNoRows {
 					m.respondError(c, 465, "LICENSE_NOT_FOUND", 
 						"Aucune licence trouvée", map[string]interface{}{
 							"establishment_code": establishment.Code,

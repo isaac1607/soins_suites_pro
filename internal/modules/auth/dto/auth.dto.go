@@ -19,41 +19,43 @@ type LoginResponse struct {
 
 // UserData représente les informations utilisateur
 type UserData struct {
-	ID                  string  `json:"id"`
-	Identifiant         string  `json:"identifiant"`
-	Nom                 string  `json:"nom"`
-	Prenoms             string  `json:"prenoms"`
-	Telephone           string  `json:"telephone"`
-	EstAdmin            bool    `json:"est_admin"`
-	TypeAdmin           *string `json:"type_admin"`
-	EstAdminTir         bool    `json:"est_admin_tir"`
-	MustChangePassword  bool    `json:"must_change_password"`
-	EstMedecin          bool    `json:"est_medecin"`
-	RoleMetier          *string `json:"role_metier"`
+	ID                 string  `json:"id"`
+	Identifiant        string  `json:"identifiant"`
+	Nom                string  `json:"nom"`
+	Prenoms            string  `json:"prenoms"`
+	Telephone          string  `json:"telephone"`
+	EstAdmin           bool    `json:"est_admin"`
+	TypeAdmin          *string `json:"type_admin"`
+	EstAdminTir        bool    `json:"est_admin_tir"`
+	MustChangePassword bool    `json:"must_change_password"`
+	EstMedecin         bool    `json:"est_medecin"`
+	RoleMetier         *string `json:"role_metier"`
 }
 
 // Permission représente un module avec ses rubriques
 type Permission struct {
-	CodeModule      string     `json:"code_module"`
-	NomStandard     string     `json:"nom_standard"`
-	NomPersonnalise *string    `json:"nom_personnalise"`
-	Description     string     `json:"description"`
-	Rubriques       []Rubrique `json:"rubriques"` // Vide = accès complet
+	ID                  string     `json:"id"`                    // ID du module
+	CodeModule          string     `json:"code_module"`
+	NomStandard         string     `json:"nom_standard"`
+	NomPersonnalise     *string    `json:"nom_personnalise"`
+	Description         string     `json:"description"`
+	AccesToutesRubriques bool      `json:"acces_toutes_rubriques"` // true = accès complet, false = accès restreint (depuis DB)
+	Rubriques           []Rubrique `json:"rubriques"`             // Liste des rubriques (toutes si accès complet, spécifiques sinon)
 }
 
 // Rubrique représente une rubrique d'un module
 type Rubrique struct {
-	CodeRubrique    string `json:"code_rubrique"`
-	Nom             string `json:"nom"`
-	Description     string `json:"description"`
-	OrdreAffichage  int    `json:"ordre_affichage"`
+	CodeRubrique   string `json:"code_rubrique"`
+	Nom            string `json:"nom"`
+	Description    string `json:"description"`
+	OrdreAffichage int    `json:"ordre_affichage"`
 }
 
 // SetupData représente l'état du setup (back-office uniquement)
 type SetupData struct {
-	EstTermine     bool `json:"est_termine"`
-	EtapeActuelle  int  `json:"etape_actuelle"`
-	TotalEtapes    int  `json:"total_etapes"`
+	EstTermine    bool `json:"est_termine"`
+	EtapeActuelle int  `json:"etape_actuelle"`
+	TotalEtapes   int  `json:"total_etapes"`
 }
 
 // LogoutResponse représente la réponse de déconnexion
@@ -64,9 +66,9 @@ type LogoutResponse struct {
 
 // MeResponse représente la réponse du endpoint /me
 type MeResponse struct {
-	User        UserData        `json:"user"`
-	Permissions []Permission    `json:"permissions"`
-	Session     SessionInfo     `json:"session"`
+	User        UserData     `json:"user"`
+	Permissions []Permission `json:"permissions"`
+	Session     SessionInfo  `json:"session"`
 }
 
 // SessionInfo représente les informations de session
@@ -78,15 +80,15 @@ type SessionInfo struct {
 
 // SessionData représente les données de session Redis
 type SessionData struct {
-	UserID           string `json:"user_id"`
-	EtablissementID  string `json:"etablissement_id"`
+	UserID            string `json:"user_id"`
+	EtablissementID   string `json:"etablissement_id"`
 	EtablissementCode string `json:"etablissement_code"`
-	ClientType       string `json:"client_type"`
-	IPAddress        string `json:"ip_address"`
-	UserAgent        string `json:"user_agent"`
-	CreatedAt        string `json:"created_at"`
-	LastActivity     string `json:"last_activity"`
-	ExpiresAt        string `json:"expires_at"`
+	ClientType        string `json:"client_type"`
+	IPAddress         string `json:"ip_address"`
+	UserAgent         string `json:"user_agent"`
+	CreatedAt         string `json:"created_at"`
+	LastActivity      string `json:"last_activity"`
+	ExpiresAt         string `json:"expires_at"`
 }
 
 // ToMap convertit SessionData en map pour Redis HMSET
@@ -137,4 +139,18 @@ func NewAuthError(code, message string, details map[string]interface{}) *AuthErr
 		Message: message,
 		Details: details,
 	}
+}
+
+// ChangePasswordRequest représente la demande de changement de mot de passe
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" validate:"required,min=8"`
+	NewPassword     string `json:"new_password" validate:"required,min=8,max=100"`
+	ConfirmPassword string `json:"confirm_password" validate:"required,min=8,max=100"`
+}
+
+// ChangePasswordResponse représente la réponse après changement de mot de passe
+type ChangePasswordResponse struct {
+	Success            bool   `json:"success"`
+	Message            string `json:"message"`
+	MustChangePassword bool   `json:"must_change_password"`
 }

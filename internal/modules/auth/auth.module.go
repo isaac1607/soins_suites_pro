@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"go.uber.org/fx"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/fx"
 
 	"soins-suite-core/internal/modules/auth/controllers"
 	"soins-suite-core/internal/modules/auth/services"
@@ -29,13 +29,14 @@ func RegisterAuthRoutes(
 	authController *controllers.AuthController,
 	authStack *authMiddleware.AuthMiddlewareStack,
 ) {
-	// Groupe API v1 pour l'authentification
+	// Groupe API v1 pour l'authentification avec EstablishmentMiddleware
 	authAPI := r.Group("/api/v1/auth")
+	authAPI.Use(authStack.EstablishmentMiddleware.Handler())
 	{
 		// Login - Nécessite EstablishmentMiddleware uniquement (rate limiting géré par AuthService)
 		authAPI.POST("/login", authController.Login)
-		
-		// Logout - Nécessite EstablishmentMiddleware uniquement (appliqué globalement)
+
+		// Logout - Nécessite EstablishmentMiddleware uniquement
 		authAPI.POST("/logout", authController.Logout)
 	}
 
@@ -45,5 +46,9 @@ func RegisterAuthRoutes(
 	{
 		// Me - Nécessite EstablishmentMiddleware + SessionMiddleware
 		protectedAuthAPI.GET("/me", authController.Me)
+
+		// Change Password - Nécessite EstablishmentMiddleware + SessionMiddleware
+		protectedAuthAPI.POST("/change-password", authController.ChangePassword)
 	}
+
 }

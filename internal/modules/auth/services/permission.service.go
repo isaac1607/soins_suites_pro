@@ -25,51 +25,51 @@ func NewPermissionService(db *postgres.Client, redisClient *redis.Client) *Permi
 	}
 }
 
-// GetUserPermissions récupère toutes les permissions d'un utilisateur avec mise en cache
+// GetUserPermissions récupère toutes les permissions d'un utilisateur TOUJOURS depuis la DB
+// SÉCURITÉ CRITIQUE : Les permissions sont toujours récupérées depuis PostgreSQL
+// pour éviter les problèmes de cache corrompu/obsolète qui pourraient compromettre la sécurité
 func (s *PermissionService) GetUserPermissions(ctx context.Context, userID, establishmentID, establishmentCode string) ([]dto.Permission, error) {
-	// Essayer de récupérer depuis le cache Redis
-	if permissions, found := s.getPermissionsFromCache(ctx, establishmentCode, userID); found {
-		return permissions, nil
-	}
-
-	// Récupérer depuis PostgreSQL
+	// TOUJOURS récupérer depuis PostgreSQL (source de vérité)
 	permissions, err := s.getPermissionsFromDB(ctx, userID, establishmentID)
 	if err != nil {
 		return nil, fmt.Errorf("erreur lors de la récupération des permissions: %w", err)
 	}
 
-	// Mettre en cache
+	// Mettre en cache en arrière-plan pour les vérifications rapides CheckPermission uniquement
+	// Le cache ne sert QUE pour les middlewares de vérification, pas pour les réponses API
 	go s.cacheUserPermissions(ctx, establishmentCode, userID, permissions)
 
 	return permissions, nil
 }
 
-// CheckPermission vérifie si un utilisateur a une permission spécifique
-func (s *PermissionService) CheckPermission(ctx context.Context, userID, establishmentCode, module, rubrique string) (bool, error) {
-	permissionsKey := fmt.Sprintf("soins_suite_%s_auth_permissions:%s", establishmentCode, userID)
-
-	// Vérifier l'accès complet au module
-	moduleAccess := fmt.Sprintf("module:%s", module)
-	hasModule, err := s.redisClient.Client().SIsMember(ctx, permissionsKey, moduleAccess).Result()
-	if err == nil && hasModule {
-		return true, nil
-	}
-
-	// Vérifier l'accès à la rubrique spécifique
-	if rubrique != "" {
-		rubriqueAccess := fmt.Sprintf("rubrique:%s:%s", module, rubrique)
-		hasRubrique, err := s.redisClient.Client().SIsMember(ctx, permissionsKey, rubriqueAccess).Result()
-		if err == nil && hasRubrique {
-			return true, nil
-		}
-	}
-
-	// Si Redis n'est pas disponible, fallback base de données
+// GetSuperAdminPermissions récupère toutes les permissions back-office pour super admin TOUJOURS depuis la DB
+// SÉCURITÉ CRITIQUE : Même pour les super admins, toujours récupérer depuis PostgreSQL
+func (s *PermissionService) GetSuperAdminPermissions(ctx context.Context, establishmentCode, userID string) ([]dto.Permission, error) {
+	// TOUJOURS récupérer depuis PostgreSQL (source de vérité)
+	permissions, err := s.getSuperAdminPermissionsFromDB(ctx)
 	if err != nil {
-		return s.checkPermissionFromDB(ctx, userID, module, rubrique)
+		return nil, fmt.Errorf("erreur lors de la récupération des permissions super admin: %w", err)
 	}
 
-	return false, nil
+	// Mettre en cache en arrière-plan avec clé spécifique pour les vérifications rapides uniquement
+	cacheKey := fmt.Sprintf("super_admin_%s", userID)
+	go s.cacheUserPermissions(ctx, establishmentCode, cacheKey, permissions)
+
+	return permissions, nil
+}
+
+// CheckPermission vérifie si un utilisateur a une permission spécifique
+// STRATÉGIE : Cache Redis first (performance) avec fallback PostgreSQL (fiabilité)
+// IMPORTANT : Cette méthode est utilisée pour les middlewares/guards (performance critique)
+func (s *PermissionService) CheckPermission(ctx context.Context, userID, establishmentID, establishmentCode, module, rubrique string) (bool, error) {
+	// 1. ÉTAPE 1 : Vérifier le cache Redis d'abord (performance optimale)
+	hasAccess, cacheHit := s.checkPermissionFromCache(ctx, establishmentCode, userID, module, rubrique)
+	if cacheHit {
+		return hasAccess, nil
+	}
+
+	// 2. ÉTAPE 2 : Cache miss ou Redis indisponible - Fallback PostgreSQL (source de vérité)
+	return s.checkPermissionFromDB(ctx, userID, establishmentID, module, rubrique)
 }
 
 // CacheUserPermissions met en cache les permissions d'un utilisateur
@@ -97,10 +97,12 @@ func (s *PermissionService) getPermissionsFromDB(ctx context.Context, userID, es
 		var rubriquesJSON []byte
 
 		err := rows.Scan(
+			&permission.ID,
 			&permission.CodeModule,
 			&permission.NomStandard,
 			&permission.NomPersonnalise,
 			&permission.Description,
+			&permission.AccesToutesRubriques,
 			&rubriquesJSON,
 		)
 		if err != nil {
@@ -120,32 +122,43 @@ func (s *PermissionService) getPermissionsFromDB(ctx context.Context, userID, es
 	return permissions, nil
 }
 
-// getPermissionsFromCache récupère les permissions depuis Redis
-func (s *PermissionService) getPermissionsFromCache(ctx context.Context, establishmentCode, userID string) ([]dto.Permission, bool) {
-	// Vérifier si le cache des permissions existe
-	permissionsKey := fmt.Sprintf("soins_suite_%s_auth_permissions:%s", establishmentCode, userID)
-	
-	exists, err := s.redisClient.Exists(ctx, permissionsKey)
-	if err != nil || !exists {
-		return nil, false
-	}
-
-	// Le cache existe, essayer de récupérer les permissions détaillées
-	detailKey := fmt.Sprintf("soins_suite_%s_auth_permissions_detail:%s", establishmentCode, userID)
-	permissionsJSON, err := s.redisClient.Get(ctx, detailKey)
+// getSuperAdminPermissionsFromDB récupère tous les modules back-office depuis PostgreSQL
+func (s *PermissionService) getSuperAdminPermissionsFromDB(ctx context.Context) ([]dto.Permission, error) {
+	rows, err := s.db.Query(ctx, queries.UserQueries.GetSuperAdminPermissions)
 	if err != nil {
-		return nil, false
+		return nil, err
 	}
+	defer rows.Close()
 
 	var permissions []dto.Permission
-	if err := json.Unmarshal([]byte(permissionsJSON), &permissions); err != nil {
-		// Cache corrompu, le supprimer
-		s.redisClient.Del(ctx, permissionsKey)
-		s.redisClient.Del(ctx, detailKey)
-		return nil, false
+	for rows.Next() {
+		var permission dto.Permission
+		var rubriquesJSON []byte
+
+		err := rows.Scan(
+			&permission.ID,
+			&permission.CodeModule,
+			&permission.NomStandard,
+			&permission.NomPersonnalise,
+			&permission.Description,
+			&permission.AccesToutesRubriques,
+			&rubriquesJSON,
+		)
+		if err != nil {
+			continue
+		}
+
+		// Parser les rubriques JSON
+		var rubriques []dto.Rubrique
+		if len(rubriquesJSON) > 0 && string(rubriquesJSON) != "[]" {
+			json.Unmarshal(rubriquesJSON, &rubriques)
+		}
+		permission.Rubriques = rubriques
+
+		permissions = append(permissions, permission)
 	}
 
-	return permissions, true
+	return permissions, nil
 }
 
 // cacheUserPermissions met en cache les permissions d'un utilisateur
@@ -154,13 +167,13 @@ func (s *PermissionService) cacheUserPermissions(ctx context.Context, establishm
 
 	// 1. Cache pour vérifications rapides (SET)
 	permissionsKey := fmt.Sprintf("soins_suite_%s_auth_permissions:%s", establishmentCode, userID)
-	
+
 	// Supprimer l'ancien cache
 	pipe.Del(ctx, permissionsKey)
 
 	// Ajouter les permissions
 	for _, perm := range permissions {
-		if len(perm.Rubriques) == 0 {
+		if perm.AccesToutesRubriques {
 			// Accès complet au module
 			pipe.SAdd(ctx, permissionsKey, fmt.Sprintf("module:%s", perm.CodeModule))
 		} else {
@@ -185,40 +198,29 @@ func (s *PermissionService) cacheUserPermissions(ctx context.Context, establishm
 	return err
 }
 
-// checkPermissionFromDB vérifie une permission depuis PostgreSQL (fallback)
-func (s *PermissionService) checkPermissionFromDB(ctx context.Context, userID, module, rubrique string) (bool, error) {
-	// Récupérer toutes les permissions (plus coûteux mais nécessaire pour fallback)
-	permissions, err := s.getPermissionsFromDB(ctx, userID, "")
+// checkPermissionFromDB vérifie une permission depuis PostgreSQL (source de vérité)
+func (s *PermissionService) checkPermissionFromDB(ctx context.Context, userID, establishmentID, module, rubrique string) (bool, error) {
+	var hasAccess bool
+	
+	// Utiliser rubrique vide si non spécifiée pour vérifier seulement l'accès au module
+	rubriqueParam := ""
+	if rubrique != "" {
+		rubriqueParam = rubrique
+	}
+
+	row := s.db.QueryRow(ctx, queries.UserQueries.CheckUserPermission, userID, establishmentID, module, rubriqueParam)
+	err := row.Scan(&hasAccess)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("erreur lors de la vérification des permissions: %w", err)
 	}
 
-	// Vérifier la permission
-	for _, perm := range permissions {
-		if perm.CodeModule == module {
-			// Si pas de rubriques spécifiées, accès complet
-			if len(perm.Rubriques) == 0 {
-				return true, nil
-			}
-
-			// Vérifier la rubrique spécifique
-			if rubrique != "" {
-				for _, r := range perm.Rubriques {
-					if r.CodeRubrique == rubrique {
-						return true, nil
-					}
-				}
-			}
-		}
-	}
-
-	return false, nil
+	return hasAccess, nil
 }
 
 // GetUserPermissionsList retourne la liste des permissions sous forme de strings (pour middleware)
 func (s *PermissionService) GetUserPermissionsList(ctx context.Context, establishmentCode, userID string) ([]string, error) {
 	permissionsKey := fmt.Sprintf("soins_suite_%s_auth_permissions:%s", establishmentCode, userID)
-	
+
 	members, err := s.redisClient.Client().SMembers(ctx, permissionsKey).Result()
 	if err != nil {
 		return nil, err
@@ -228,13 +230,13 @@ func (s *PermissionService) GetUserPermissionsList(ctx context.Context, establis
 }
 
 // HasModuleAccess vérifie l'accès à un module complet
-func (s *PermissionService) HasModuleAccess(ctx context.Context, userID, establishmentCode, module string) (bool, error) {
-	return s.CheckPermission(ctx, userID, establishmentCode, module, "")
+func (s *PermissionService) HasModuleAccess(ctx context.Context, userID, establishmentID, establishmentCode, module string) (bool, error) {
+	return s.CheckPermission(ctx, userID, establishmentID, establishmentCode, module, "")
 }
 
 // HasRubriqueAccess vérifie l'accès à une rubrique spécifique
-func (s *PermissionService) HasRubriqueAccess(ctx context.Context, userID, establishmentCode, module, rubrique string) (bool, error) {
-	return s.CheckPermission(ctx, userID, establishmentCode, module, rubrique)
+func (s *PermissionService) HasRubriqueAccess(ctx context.Context, userID, establishmentID, establishmentCode, module, rubrique string) (bool, error) {
+	return s.CheckPermission(ctx, userID, establishmentID, establishmentCode, module, rubrique)
 }
 
 // RefreshUserPermissions force le rafraîchissement des permissions depuis la DB

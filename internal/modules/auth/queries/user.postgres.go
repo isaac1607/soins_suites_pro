@@ -4,7 +4,10 @@ package queries
 var UserQueries = struct {
 	GetByIdentifiant          string
 	GetUserPermissions        string
+	GetSuperAdminPermissions  string
+	CheckUserPermission       string
 	GetSetupState             string
+	ChangePassword            string
 	CreateSession             string
 	GetSessionByToken         string
 	DeleteSession             string
@@ -45,25 +48,25 @@ var UserQueries = struct {
 	 * Paramètres: $1 = user_id, $2 = etablissement_id
 	 */
 	GetUserPermissions: `
-		WITH user_modules_access AS (
-			-- Modules via profils templates
+		WITH modules_via_profils AS (
+			-- Modules via profils avec leur niveau d'accès
 			SELECT DISTINCT
-				m.id, m.code_module, m.nom_standard, m.nom_personnalise,
-				m.description, pm.acces_toutes_rubriques, 'profil' as source
+				m.id, m.code_module, m.nom_standard, m.nom_personnalise, m.description,
+				pm.acces_toutes_rubriques
 			FROM user_profil_utilisateurs pu
 			JOIN user_profil_modules pm ON pm.profil_template_id = pu.profil_template_id
 			JOIN base_module m ON m.id = pm.module_id
 			WHERE pu.utilisateur_id = $1 
 			  AND pu.etablissement_id = $2
 			  AND pu.est_actif = TRUE
+			  AND pm.est_actif = TRUE
 			  AND m.est_actif = TRUE
-		
-			UNION
-		
-			-- Modules directs utilisateur
+		),
+		modules_directs AS (
+			-- Modules directs avec leur niveau d'accès
 			SELECT DISTINCT
-				m.id, m.code_module, m.nom_standard, m.nom_personnalise,
-				m.description, um.acces_toutes_rubriques, 'direct' as source
+				m.id, m.code_module, m.nom_standard, m.nom_personnalise, m.description,
+				um.acces_toutes_rubriques
 			FROM user_modules um
 			JOIN base_module m ON m.id = um.module_id
 			WHERE um.utilisateur_id = $1 
@@ -71,61 +74,230 @@ var UserQueries = struct {
 			  AND um.est_actif = TRUE
 			  AND m.est_actif = TRUE
 		),
-		user_rubriques_access AS (
-			-- Rubriques via profils templates (quand acces_toutes_rubriques = FALSE)
-			SELECT pr.module_id, r.id, r.code_rubrique, r.nom,
-				   r.description, r.ordre_affichage
+		tous_modules AS (
+			-- Union de tous les modules avec consolidation des accès
+			SELECT 
+				id, code_module, nom_standard, nom_personnalise, description,
+				bool_or(acces_toutes_rubriques) as acces_toutes_rubriques
+			FROM (
+				SELECT * FROM modules_via_profils
+				UNION ALL
+				SELECT * FROM modules_directs
+			) all_modules
+			GROUP BY id, code_module, nom_standard, nom_personnalise, description
+		),
+		rubriques_specifiques AS (
+			-- Rubriques spécifiques via profils (seulement si pas d'accès complet)
+			SELECT pr.module_id, r.code_rubrique, r.nom, r.description, r.ordre_affichage
 			FROM user_profil_utilisateurs pu
-			JOIN user_profil_rubriques pr ON pr.profil_template_id = pu.profil_template_id
+			JOIN user_profil_modules pm ON pm.profil_template_id = pu.profil_template_id
+			JOIN user_profil_rubriques pr ON pr.profil_template_id = pu.profil_template_id AND pr.module_id = pm.module_id
 			JOIN base_rubrique r ON r.id = pr.rubrique_id
 			WHERE pu.utilisateur_id = $1 
 			  AND pu.etablissement_id = $2
 			  AND pu.est_actif = TRUE
+			  AND pm.est_actif = TRUE
+			  AND pr.est_actif = TRUE
 			  AND r.est_actif = TRUE
+			  AND pm.acces_toutes_rubriques = FALSE
 		
 			UNION
 		
-			-- Rubriques directes utilisateur
-			SELECT umr.module_id, r.id, r.code_rubrique, r.nom,
-				   r.description, r.ordre_affichage
-			FROM user_modules_rubriques umr
+			-- Rubriques spécifiques directes (seulement si pas d'accès complet)
+			SELECT umr.module_id, r.code_rubrique, r.nom, r.description, r.ordre_affichage
+			FROM user_modules um
+			JOIN user_modules_rubriques umr ON umr.utilisateur_id = um.utilisateur_id AND umr.module_id = um.module_id
 			JOIN base_rubrique r ON r.id = umr.rubrique_id
-			WHERE umr.utilisateur_id = $1 
-			  AND umr.etablissement_id = $2
+			WHERE um.utilisateur_id = $1 
+			  AND um.etablissement_id = $2
+			  AND um.est_actif = TRUE
 			  AND umr.est_actif = TRUE
 			  AND r.est_actif = TRUE
+			  AND um.acces_toutes_rubriques = FALSE
 		)
 		SELECT
+			m.id::text,
 			m.code_module,
 			m.nom_standard,
 			m.nom_personnalise,
 			m.description,
+			m.acces_toutes_rubriques,
 			CASE
-				-- Si au moins un accès donne toutes les rubriques, alors accès complet
-				WHEN bool_or(m.acces_toutes_rubriques) THEN '[]'::jsonb
-				-- Sinon, agréger les rubriques spécifiques
+				-- Si accès complet, récupérer TOUTES les rubriques du module
+				WHEN m.acces_toutes_rubriques = TRUE THEN (
+					SELECT COALESCE(
+						jsonb_agg(
+							jsonb_build_object(
+								'code_rubrique', br.code_rubrique,
+								'nom', br.nom,
+								'description', br.description,
+								'ordre_affichage', br.ordre_affichage
+							) ORDER BY br.ordre_affichage
+						),
+						'[]'::jsonb
+					)
+					FROM base_rubrique br 
+					WHERE br.module_id = m.id AND br.est_actif = TRUE
+				)
+				-- Sinon, récupérer seulement les rubriques spécifiquement accordées
 				ELSE COALESCE(
-					jsonb_agg(
-						DISTINCT jsonb_build_object(
-							'code_rubrique', r.code_rubrique,
-							'nom', r.nom,
-							'description', r.description,
-							'ordre_affichage', r.ordre_affichage
-						) ORDER BY jsonb_build_object(
-							'code_rubrique', r.code_rubrique,
-							'nom', r.nom,
-							'description', r.description,
-							'ordre_affichage', r.ordre_affichage
+					(
+						SELECT jsonb_agg(
+							jsonb_build_object(
+								'code_rubrique', rs.code_rubrique,
+								'nom', rs.nom,
+								'description', rs.description,
+								'ordre_affichage', rs.ordre_affichage
+							) ORDER BY rs.ordre_affichage
 						)
-					) FILTER (WHERE r.id IS NOT NULL),
+						FROM rubriques_specifiques rs
+						WHERE rs.module_id = m.id
+					),
 					'[]'::jsonb
 				)
 			END as rubriques
-		FROM user_modules_access m
-		LEFT JOIN user_rubriques_access r ON r.module_id = m.id
-			AND NOT bool_or(m.acces_toutes_rubriques) -- Joint les rubriques seulement si pas d'accès complet
-		GROUP BY m.code_module, m.nom_standard, m.nom_personnalise, m.description
+		FROM tous_modules m
 		ORDER BY m.code_module
+	`,
+
+	/**
+	 * Récupère tous les modules back-office pour super admin
+	 * Paramètres: aucun
+	 */
+	GetSuperAdminPermissions: `
+		SELECT
+			m.id,
+			m.code_module,
+			m.nom_standard,
+			m.nom_personnalise,
+			m.description,
+			TRUE as acces_toutes_rubriques,
+			COALESCE(
+				jsonb_agg(
+					DISTINCT jsonb_build_object(
+						'code_rubrique', r.code_rubrique,
+						'nom', r.nom,
+						'description', r.description,
+						'ordre_affichage', r.ordre_affichage
+					) ORDER BY jsonb_build_object(
+						'code_rubrique', r.code_rubrique,
+						'nom', r.nom,
+						'description', r.description,
+						'ordre_affichage', r.ordre_affichage
+					)
+				) FILTER (WHERE r.id IS NOT NULL),
+				'[]'::jsonb
+			) as rubriques
+		FROM base_module m
+		LEFT JOIN base_rubrique r ON r.module_id = m.id AND r.est_actif = TRUE
+		WHERE m.est_actif = TRUE 
+		  AND m.est_module_back_office = TRUE
+		GROUP BY m.id, m.code_module, m.nom_standard, m.nom_personnalise, m.description
+		ORDER BY m.code_module
+	`,
+
+	/**
+	 * Vérifie si un utilisateur a accès à un module/rubrique spécifique
+	 * Paramètres: $1 = user_id, $2 = etablissement_id, $3 = code_module, $4 = code_rubrique (optionnel)
+	 */
+	CheckUserPermission: `
+		WITH user_modules_access AS (
+			-- Modules via profils
+			SELECT DISTINCT 
+				m.code_module, 
+				pm.acces_toutes_rubriques
+			FROM user_profil_utilisateurs pu
+			JOIN user_profil_modules pm ON pm.profil_template_id = pu.profil_template_id
+			JOIN base_module m ON m.id = pm.module_id
+			WHERE pu.utilisateur_id = $1 
+			  AND pu.etablissement_id = $2
+			  AND pu.est_actif = TRUE
+			  AND pm.est_actif = TRUE
+			  AND m.est_actif = TRUE
+			  AND m.code_module = $3
+
+			UNION
+
+			-- Modules directs
+			SELECT DISTINCT 
+				m.code_module, 
+				um.acces_toutes_rubriques
+			FROM user_modules um
+			JOIN base_module m ON m.id = um.module_id
+			WHERE um.utilisateur_id = $1 
+			  AND um.etablissement_id = $2
+			  AND um.est_actif = TRUE
+			  AND m.est_actif = TRUE
+			  AND m.code_module = $3
+		),
+		user_rubriques_access AS (
+			-- Rubriques via profils (si pas d'accès complet module)
+			SELECT DISTINCT r.code_rubrique
+			FROM user_profil_utilisateurs pu
+			JOIN user_profil_modules pm ON pm.profil_template_id = pu.profil_template_id
+			JOIN user_profil_rubriques pr ON pr.profil_template_id = pu.profil_template_id AND pr.module_id = pm.module_id
+			JOIN base_module m ON m.id = pm.module_id
+			JOIN base_rubrique r ON r.id = pr.rubrique_id
+			WHERE pu.utilisateur_id = $1 
+			  AND pu.etablissement_id = $2
+			  AND pu.est_actif = TRUE
+			  AND pm.est_actif = TRUE
+			  AND pr.est_actif = TRUE
+			  AND r.est_actif = TRUE
+			  AND m.code_module = $3
+			  AND ($4 = '' OR r.code_rubrique = $4)
+			  AND pm.acces_toutes_rubriques = FALSE
+
+			UNION
+
+			-- Rubriques directes (si pas d'accès complet module)
+			SELECT DISTINCT r.code_rubrique
+			FROM user_modules um
+			JOIN user_modules_rubriques umr ON umr.utilisateur_id = um.utilisateur_id AND umr.module_id = um.module_id
+			JOIN base_module m ON m.id = um.module_id
+			JOIN base_rubrique r ON r.id = umr.rubrique_id
+			WHERE um.utilisateur_id = $1 
+			  AND um.etablissement_id = $2
+			  AND um.est_actif = TRUE
+			  AND umr.est_actif = TRUE
+			  AND r.est_actif = TRUE
+			  AND m.code_module = $3
+			  AND ($4 = '' OR r.code_rubrique = $4)
+			  AND um.acces_toutes_rubriques = FALSE
+		)
+		SELECT 
+			CASE 
+				-- Si l'utilisateur a un accès complet au module
+				WHEN EXISTS (
+					SELECT 1 FROM user_modules_access 
+					WHERE code_module = $3 AND acces_toutes_rubriques = TRUE
+				) THEN TRUE
+				-- Sinon, vérifier si pas de rubrique demandée (accès module seul)
+				WHEN $4 = '' THEN FALSE
+				-- Sinon, vérifier l'accès à la rubrique spécifique
+				ELSE EXISTS (
+					SELECT 1 FROM user_rubriques_access 
+					WHERE code_rubrique = $4
+				)
+			END as has_access
+	`,
+
+	/**
+	 * Change le mot de passe d'un utilisateur
+	 * Paramètres: $1 = new_password_hash, $2 = new_salt, $3 = user_id, $4 = etablissement_id
+	 */
+	ChangePassword: `
+		UPDATE user_utilisateur 
+		SET 
+			password_hash = $1,
+			salt = $2,
+			must_change_password = FALSE,
+			password_changed_at = NOW(),
+			updated_at = NOW()
+		WHERE id = $3 
+		  AND etablissement_id = $4 
+		  AND statut = 'actif'
+		RETURNING id, must_change_password, password_changed_at
 	`,
 
 	/**

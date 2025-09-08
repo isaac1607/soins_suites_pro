@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"soins-suite-core/internal/infrastructure/database/postgres"
 	"soins-suite-core/internal/infrastructure/database/redis"
 	"soins-suite-core/internal/modules/auth/dto"
@@ -72,13 +73,16 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest, establish
 	)
 
 	if err != nil {
-		// Incrémenter le compteur d'échec pour le rate limiting
-		s.incrementFailedAttempt(ctx, establishmentCode, req.Identifiant)
-		
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
+			// Cas normal : utilisateur non trouvé - incrémenter rate limiting
+			s.incrementFailedAttempt(ctx, establishmentCode, req.Identifiant)
 			return nil, dto.NewAuthError("INVALID_CREDENTIALS", "Identifiant ou mot de passe incorrect", nil)
 		}
-		return nil, fmt.Errorf("erreur lors de la récupération de l'utilisateur: %w", err)
+		
+		// Erreur technique de base de données (schéma, connexion, etc.)
+		// Ne pas incrémenter le rate limiting car ce n'est pas une tentative malveillante
+		log.Printf("Database error during login for user %s: %v", req.Identifiant, err)
+		return nil, fmt.Errorf("erreur technique lors de la récupération de l'utilisateur: %w", err)
 	}
 
 	// 3. Vérifier le mot de passe
@@ -114,7 +118,15 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest, establish
 	}
 
 	// 7. Récupérer et cacher les permissions
-	permissions, err := s.permService.GetUserPermissions(ctx, user.ID, establishmentID, establishmentCode)
+	var permissions []dto.Permission
+	if user.EstAdmin && user.TypeAdmin.Valid && user.TypeAdmin.String == "super_admin" && clientType == "back-office" {
+		// Super admin back-office : récupérer tous les modules back-office
+		permissions, err = s.permService.GetSuperAdminPermissions(ctx, establishmentCode, user.ID)
+	} else {
+		// Utilisateur normal : récupérer ses permissions spécifiques
+		permissions, err = s.permService.GetUserPermissions(ctx, user.ID, establishmentID, establishmentCode)
+	}
+	
 	if err != nil {
 		// Nettoyer la session créée en cas d'erreur
 		s.sessionService.DeleteSession(ctx, token, establishmentCode, user.ID)
@@ -205,6 +217,79 @@ func (s *AuthService) LogoutByToken(ctx context.Context, token, establishmentCod
 	return s.sessionService.DeleteSessionIdempotent(ctx, token, establishmentCode, userID)
 }
 
+// ChangePassword change le mot de passe d'un utilisateur
+func (s *AuthService) ChangePassword(ctx context.Context, userID, establishmentID string, req dto.ChangePasswordRequest) (*dto.ChangePasswordResponse, error) {
+	// 1. Validation des mots de passe
+	if req.NewPassword != req.ConfirmPassword {
+		return nil, dto.NewAuthError("PASSWORD_MISMATCH", "Les mots de passe ne correspondent pas", nil)
+	}
+
+	// 2. Commencer une transaction
+	tx, err := s.db.BeginTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("erreur lors du démarrage de la transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 3. Récupérer l'utilisateur pour vérifier le mot de passe actuel
+	var user struct {
+		ID           string
+		PasswordHash string
+		Salt         string
+	}
+
+	row := tx.QueryRow(ctx, `
+		SELECT id::text, password_hash, salt 
+		FROM user_utilisateur 
+		WHERE id = $1::uuid AND etablissement_id = $2::uuid AND statut = 'actif'
+		FOR UPDATE
+	`, userID, establishmentID)
+
+	err = row.Scan(&user.ID, &user.PasswordHash, &user.Salt)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, dto.NewAuthError("USER_NOT_FOUND", "Utilisateur non trouvé", nil)
+		}
+		return nil, fmt.Errorf("erreur lors de la récupération de l'utilisateur: %w", err)
+	}
+
+	// 3. Vérifier le mot de passe actuel
+	if !utils.VerifyPasswordSHA512(req.CurrentPassword, user.Salt, user.PasswordHash) {
+		return nil, dto.NewAuthError("INVALID_CURRENT_PASSWORD", "Mot de passe actuel incorrect", nil)
+	}
+
+	// 4. Générer nouveau hash et salt
+	newSalt, _ := utils.GenerateSalt()
+	newPasswordHash := utils.HashPasswordSHA512(req.NewPassword, newSalt)
+
+	// 5. Mettre à jour en base
+	var updatedUserID string
+	var mustChangePassword bool
+	var passwordChangedAt *time.Time
+
+	err = tx.QueryRow(ctx, queries.UserQueries.ChangePassword, 
+		newPasswordHash, newSalt, userID, establishmentID).Scan(
+		&updatedUserID, &mustChangePassword, &passwordChangedAt)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, dto.NewAuthError("USER_NOT_FOUND", "Utilisateur non trouvé ou inactif", nil)
+		}
+		return nil, fmt.Errorf("erreur lors du changement de mot de passe: %w", err)
+	}
+
+	// 6. Valider la transaction
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("erreur lors de la validation de la transaction: %w", err)
+	}
+
+	return &dto.ChangePasswordResponse{
+		Success:            true,
+		Message:            "Mot de passe changé avec succès",
+		MustChangePassword: mustChangePassword,
+	}, nil
+}
+
 // GetCurrentUser récupère les informations de l'utilisateur courant
 func (s *AuthService) GetCurrentUser(ctx context.Context, token, establishmentCode string) (*dto.MeResponse, error) {
 	// Récupérer la session
@@ -249,7 +334,7 @@ func (s *AuthService) GetCurrentUserByID(ctx context.Context, userID, establishm
 		&user.EstMedecin, &user.RoleMetier,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return nil, dto.NewAuthError("USER_NOT_FOUND", "Utilisateur non trouvé", nil)
 		}
 		return nil, fmt.Errorf("erreur lors de la récupération des données utilisateur: %w", err)
@@ -278,7 +363,15 @@ func (s *AuthService) GetCurrentUserByID(ctx context.Context, userID, establishm
 	}
 
 	// Récupérer les permissions complètes avec cache
-	permissions, err := s.permService.GetUserPermissions(ctx, user.ID, establishmentID, establishmentCode)
+	var permissions []dto.Permission
+	if user.EstAdmin && user.TypeAdmin.Valid && user.TypeAdmin.String == "super_admin" {
+		// Super admin : récupérer tous les modules back-office
+		permissions, err = s.permService.GetSuperAdminPermissions(ctx, establishmentCode, user.ID)
+	} else {
+		// Utilisateur normal : récupérer ses permissions spécifiques
+		permissions, err = s.permService.GetUserPermissions(ctx, user.ID, establishmentID, establishmentCode)
+	}
+	
 	if err != nil {
 		return nil, fmt.Errorf("erreur lors de la récupération des permissions: %w", err)
 	}
