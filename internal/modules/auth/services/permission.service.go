@@ -198,6 +198,50 @@ func (s *PermissionService) cacheUserPermissions(ctx context.Context, establishm
 	return err
 }
 
+// checkPermissionFromCache vérifie une permission depuis le cache Redis (performance optimale)
+// Retourne (hasAccess, cacheHit) - cacheHit=false indique qu'il faut faire le fallback PostgreSQL
+func (s *PermissionService) checkPermissionFromCache(ctx context.Context, establishmentCode, userID, module, rubrique string) (bool, bool) {
+	permissionsKey := fmt.Sprintf("soins_suite_%s_auth_permissions:%s", establishmentCode, userID)
+
+	// 1. Vérifier d'abord l'accès module complet (plus performant)
+	moduleAccess := fmt.Sprintf("module:%s", module)
+	hasModule, err := s.redisClient.Client().SIsMember(ctx, permissionsKey, moduleAccess).Result()
+	if err != nil {
+		// Redis indisponible ou erreur - retourner cache miss pour fallback PostgreSQL
+		return false, false
+	}
+	
+	if hasModule {
+		// Accès complet au module trouvé dans le cache
+		return true, true
+	}
+
+	// 2. Si pas d'accès module ET rubrique demandée, vérifier la rubrique spécifique
+	if rubrique != "" {
+		rubriqueAccess := fmt.Sprintf("rubrique:%s:%s", module, rubrique)
+		hasRubrique, err := s.redisClient.Client().SIsMember(ctx, permissionsKey, rubriqueAccess).Result()
+		if err != nil {
+			// Redis indisponible ou erreur - retourner cache miss pour fallback PostgreSQL
+			return false, false
+		}
+		
+		if hasRubrique {
+			// Accès à la rubrique spécifique trouvé dans le cache
+			return true, true
+		}
+	}
+
+	// 3. Vérifier si la clé existe dans Redis (pour différencier cache miss vs permission refusée)
+	exists, err := s.redisClient.Client().Exists(ctx, permissionsKey).Result()
+	if err != nil || exists == 0 {
+		// Redis indisponible OU permissions non cachées - fallback PostgreSQL nécessaire
+		return false, false
+	}
+
+	// 4. Clé existe mais permission non trouvée - accès refusé selon le cache
+	return false, true
+}
+
 // checkPermissionFromDB vérifie une permission depuis PostgreSQL (source de vérité)
 func (s *PermissionService) checkPermissionFromDB(ctx context.Context, userID, establishmentID, module, rubrique string) (bool, error) {
 	var hasAccess bool
