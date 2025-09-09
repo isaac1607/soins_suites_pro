@@ -6,8 +6,9 @@ import (
 
 // SeedDataStatus représente l'état des données de seeding
 type SeedDataStatus struct {
-	ModulesExist  bool `json:"modules_exist"`
-	AllDataExists bool `json:"all_data_exists"`
+	ModulesExist    bool `json:"modules_exist"`
+	SuperAdminExist bool `json:"super_admin_exist"`
+	AllDataExists   bool `json:"all_data_exists"`
 }
 
 // Types pour établissement et admin supprimés - Focus modules uniquement
@@ -46,7 +47,7 @@ type ModulesJSONStructure struct {
 	} `json:"modules"`
 }
 
-// SeedingService interface simplifiée pour la gestion des modules uniquement
+// SeedingService interface pour la gestion des modules et admin TIR
 type SeedingService interface {
 	// Vérifications d'état
 	CheckSeedDataExists(ctx context.Context) (*SeedDataStatus, error)
@@ -55,13 +56,16 @@ type SeedingService interface {
 	// Seeding des modules
 	SeedModulesFromJSON(ctx context.Context, jsonPath string) error
 
+	// Seeding du super admin TIR
+	SeedSuperAdminTIR(ctx context.Context) error
+
 	// Utilitaires
 	LoadModulesFromFile(jsonPath string) (*ModulesJSONStructure, error)
 }
 
-// IsComplete vérifie si le seeding des modules est complet
+// IsComplete vérifie si le seeding est complet
 func (s *SeedDataStatus) IsComplete() bool {
-	return s.ModulesExist
+	return s.ModulesExist && s.SuperAdminExist
 }
 
 // GetMissingSeeds retourne la liste des seeds manquants
@@ -70,6 +74,10 @@ func (s *SeedDataStatus) GetMissingSeeds() []string {
 
 	if !s.ModulesExist {
 		missing = append(missing, "modules")
+	}
+
+	if !s.SuperAdminExist {
+		missing = append(missing, "super_admin_tir")
 	}
 
 	return missing

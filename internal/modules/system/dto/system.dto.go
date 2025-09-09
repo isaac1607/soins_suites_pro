@@ -14,16 +14,28 @@ type EstablishmentInfoDTO struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// ModuleLicenseDTO représente un module autorisé avec ses informations complètes
+type ModuleLicenseDTO struct {
+	ID                  string `json:"id"`
+	CodeModule          string `json:"code_module"`
+	NomStandard         string `json:"nom_standard"`
+	Description         string `json:"description,omitempty"`
+	EstMedical          bool   `json:"est_medical"`
+	PeutPrendreTicket   bool   `json:"peut_prendre_ticket"`
+	EstActif            bool   `json:"est_actif"`
+	EstModuleBackOffice bool   `json:"est_module_back_office"`
+}
+
 // LicenseInfoDTO représente les informations de licence
 type LicenseInfoDTO struct {
-	ID               string     `json:"id"`
-	Type             string     `json:"type"`
-	ModeDeploiement  string     `json:"mode_deploiement"`
-	Statut           string     `json:"statut"` // actif, expiree, revoquee, non_configuree
-	DateActivation   *time.Time `json:"date_activation,omitempty"`
-	DateExpiration   *time.Time `json:"date_expiration,omitempty"`
-	JoursRestants    *int       `json:"jours_restants,omitempty"`
-	ModulesAutorises []string   `json:"modules_autorises"`
+	ID               string             `json:"id"`
+	Type             string             `json:"type"`
+	ModeDeploiement  string             `json:"mode_deploiement"`
+	Statut           string             `json:"statut"` // actif, expiree, revoquee, non_configuree
+	DateActivation   *time.Time         `json:"date_activation,omitempty"`
+	DateExpiration   *time.Time         `json:"date_expiration,omitempty"`
+	JoursRestants    *int               `json:"jours_restants,omitempty"`
+	ModulesAutorises []ModuleLicenseDTO `json:"modules_autorises"`
 }
 
 // ModuleInfoDTO représente un module disponible

@@ -9,6 +9,9 @@ import (
 	"soins-suite-core/internal/modules/auth"
 	"soins-suite-core/internal/modules/system"
 	"soins-suite-core/internal/modules/back-office/users"
+	coreservices "soins-suite-core/internal/modules/core-services"
+	tirauth "soins-suite-core/internal/modules/tir/tir-auth"
+	tiretablissement "soins-suite-core/internal/modules/tir/tir-etablissement"
 
 	"go.uber.org/fx"
 )
@@ -34,10 +37,15 @@ var AppModule = fx.Options(
 	// Middlewares partagés (après infrastructure, avant modules métier)
 	middleware.Module,
 
+	// Core Services (avant modules métier)
+	coreservices.Module,
+
 	// Modules métier
 	auth.Module,
 	system.Module,
 	users.Module,
+	tirauth.Module,
+	tiretablissement.Module,
 
 	// Bootstrap System - Providers
 	fx.Provide(bootstrap.NewBootstrapExtensionManager),

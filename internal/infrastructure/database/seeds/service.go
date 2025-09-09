@@ -9,6 +9,7 @@ import (
 
 	"soins-suite-core/internal/app/config"
 	"soins-suite-core/internal/infrastructure/database/postgres"
+	"soins-suite-core/internal/shared/utils"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -31,22 +32,31 @@ func NewSeedingService(pgClient *postgres.Client, cfg *config.Config) SeedingSer
 func (s *seedingService) CheckSeedDataExists(ctx context.Context) (*SeedDataStatus, error) {
 	status := &SeedDataStatus{}
 
-	// Vérifier modules/rubriques uniquement
+	// Vérifier modules/rubriques
 	modulesExist, err := s.checkModulesExist(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("erreur vérification modules: %w", err)
 	}
 	status.ModulesExist = modulesExist
-	status.AllDataExists = status.ModulesExist
+
+	// Vérifier super admin TIR
+	superAdminExist, err := s.checkSuperAdminExists(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("erreur vérification super admin: %w", err)
+	}
+	status.SuperAdminExist = superAdminExist
+
+	status.AllDataExists = status.ModulesExist && status.SuperAdminExist
 
 	return status, nil
 }
 
-// ValidateRequiredTables valide que toutes les tables requises pour les modules existent
+// ValidateRequiredTables valide que toutes les tables requises existent
 func (s *seedingService) ValidateRequiredTables(ctx context.Context) error {
 	requiredTables := []string{
 		"base_module",
 		"base_rubrique",
+		"tir_admin_global",
 	}
 
 	for _, table := range requiredTables {
@@ -280,5 +290,99 @@ func (s *seedingService) checkRubriqueExists(ctx context.Context, moduleID, code
 
 	var exists bool
 	err := s.pgClient.Pool().QueryRow(ctx, query, moduleID, codeRubrique).Scan(&exists)
+	return exists, err
+}
+
+// SeedSuperAdminTIR crée le super admin TIR par défaut
+func (s *seedingService) SeedSuperAdminTIR(ctx context.Context) error {
+	fmt.Printf("[SEEDING] 👤 Création super admin TIR\n")
+
+	// Vérifier si le super admin existe déjà
+	exists, err := s.checkSuperAdminExists(ctx)
+	if err != nil {
+		return fmt.Errorf("vérification super admin existant: %w", err)
+	}
+
+	if exists {
+		fmt.Printf("[SEEDING] ⏭️  Super admin TIR existe déjà - Ignoré\n")
+		return nil
+	}
+
+	// Récupérer le mot de passe depuis la config
+	if s.config.System.AdminTIRPassword == "" {
+		return fmt.Errorf("AdminTIRPassword requis en configuration")
+	}
+
+	// Générer salt et hash du mot de passe
+	salt, err := utils.GenerateSalt()
+	if err != nil {
+		return fmt.Errorf("génération salt: %w", err)
+	}
+
+	passwordHash := utils.HashPasswordSHA512(s.config.System.AdminTIRPassword, salt)
+
+	// Commencer une transaction
+	tx, err := s.pgClient.Pool().Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("début transaction super admin: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Insérer le super admin TIR
+	if err := s.insertSuperAdminTIR(ctx, tx, salt, passwordHash); err != nil {
+		return fmt.Errorf("insertion super admin TIR: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit transaction super admin: %w", err)
+	}
+
+	fmt.Printf("[SEEDING] ✅ Super admin TIR créé avec succès\n")
+	return nil
+}
+
+// insertSuperAdminTIR insère le super admin TIR avec valeurs fixes et toutes les permissions
+func (s *seedingService) insertSuperAdminTIR(ctx context.Context, tx pgx.Tx, salt, passwordHash string) error {
+	query := `
+		INSERT INTO tir_admin_global (
+			identifiant, nom, prenoms, email,
+			password_hash, salt, niveau_admin,
+			peut_gerer_licences, peut_gerer_etablissements,
+			peut_acceder_donnees_etablissement, peut_gerer_admins_globaux,
+			created_at
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+		)
+	`
+
+	_, err := tx.Exec(ctx, query,
+		"admin_tir",                    // identifiant
+		"Admin",                        // nom
+		"TIR",                          // prenoms
+		"admin@tir-system.local",       // email
+		passwordHash,                   // password_hash
+		salt,                          // salt
+		"super_admin_tir",             // niveau_admin
+		true,                          // peut_gerer_licences
+		true,                          // peut_gerer_etablissements
+		true,                          // peut_acceder_donnees_etablissement
+		true,                          // peut_gerer_admins_globaux
+		time.Now(),                    // created_at
+	)
+
+	if err != nil {
+		return ErrDatabaseOperation("insertion super admin TIR", err)
+	}
+
+	return nil
+}
+
+// checkSuperAdminExists vérifie si un super admin TIR existe
+func (s *seedingService) checkSuperAdminExists(ctx context.Context) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM tir_admin_global WHERE niveau_admin = 'super_admin_tir')`
+
+	var exists bool
+	err := s.pgClient.Pool().QueryRow(ctx, query).Scan(&exists)
 	return exists, err
 }

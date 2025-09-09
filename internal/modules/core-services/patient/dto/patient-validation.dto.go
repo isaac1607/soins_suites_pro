@@ -2,8 +2,6 @@ package dto
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // DuplicateCheckRequest représente une demande de vérification de doublon
@@ -34,20 +32,7 @@ type PotentialDuplicate struct {
 	MatchDetails  MatchDetail        `json:"match_details"`
 }
 
-// PatientSearchResult représente un résultat de recherche de patient (version allégée)
-type PatientSearchResult struct {
-	ID               uuid.UUID `json:"id"`
-	CodePatient      string    `json:"code_patient"`
-	Nom              string    `json:"nom"`
-	Prenoms          string    `json:"prenoms"`
-	DateNaissance    time.Time `json:"date_naissance"`
-	Sexe             string    `json:"sexe"`
-	TelephonePrincipal string  `json:"telephone_principal"`
-	AdresseComplete   string   `json:"adresse_complete"`
-	EstAssure        bool      `json:"est_assure"`
-	Statut           string    `json:"statut"`
-	CreatedAt        time.Time `json:"created_at"`
-}
+// PatientSearchResult est défini dans patient-search.dto.go pour éviter la duplication
 
 // MatchDetail représente les détails d'un match de doublon
 type MatchDetail struct {

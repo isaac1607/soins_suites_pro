@@ -3,6 +3,7 @@ package core_services
 import (
 	"go.uber.org/fx"
 
+	"soins-suite-core/internal/modules/core-services/establishment"
 	"soins-suite-core/internal/modules/core-services/patient"
 )
 
@@ -12,7 +13,9 @@ var Module = fx.Options(
 	// Patient Core Services (Génération codes, validation, etc.)
 	patient.Module,
 
+	// Establishment Core Services (Création, validation, etc.)
+	establishment.Module,
+
 	// TODO: Autres domaines Core Services à ajouter selon besoins
-	// establishment.Module,  // Services établissement centralisés
 	// user.Module,          // Services utilisateur centralisés
 )

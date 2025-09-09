@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
 	"soins-suite-core/internal/infrastructure/database/postgres"
 	"soins-suite-core/internal/modules/core-services/patient/dto"
@@ -38,7 +37,7 @@ func (s *PatientValidationService) CheckPatientDuplicate(
 	ctx context.Context,
 	req *dto.DuplicateCheckRequest,
 ) (*dto.DuplicateCheckResponse, error) {
-	startTime := time.Now()
+	// startTime := time.Now()
 
 	// Validation des paramètres
 	if err := s.validateDuplicateCheckRequest(req); err != nil {
@@ -97,17 +96,17 @@ func (s *PatientValidationService) CheckPatientDuplicate(
 
 		// Créer le détail du match
 		matchDetail := dto.MatchDetail{
-			NomMatch:          nomMatch,
-			PrenomsMatch:      prenomsMatch,
+			NomMatch:           nomMatch,
+			PrenomsMatch:       prenomsMatch,
 			DateNaissanceMatch: dateMatch,
-			TelephoneMatch:    telephoneMatch,
-			ScoreGlobal:      scoreGlobal,
+			TelephoneMatch:     telephoneMatch,
+			ScoreGlobal:        scoreGlobal,
 		}
 
 		potentialMatch := dto.PotentialDuplicate{
-			Patient:       patient,
-			Score:         scoreGlobal,
-			MatchDetails:  matchDetail,
+			Patient:      patient,
+			Score:        scoreGlobal,
+			MatchDetails: matchDetail,
 		}
 
 		potentialMatches = append(potentialMatches, potentialMatch)

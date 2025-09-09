@@ -7,13 +7,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"soins-suite-core/internal/infrastructure/database/postgres"
 	"soins-suite-core/internal/infrastructure/database/redis"
 	"soins-suite-core/internal/modules/auth/dto"
 	"soins-suite-core/internal/modules/auth/queries"
 	"soins-suite-core/internal/shared/utils"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type AuthService struct {
@@ -78,7 +79,7 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest, establish
 			s.incrementFailedAttempt(ctx, establishmentCode, req.Identifiant)
 			return nil, dto.NewAuthError("INVALID_CREDENTIALS", "Identifiant ou mot de passe incorrect", nil)
 		}
-		
+
 		// Erreur technique de base de données (schéma, connexion, etc.)
 		// Ne pas incrémenter le rate limiting car ce n'est pas une tentative malveillante
 		log.Printf("Database error during login for user %s: %v", req.Identifiant, err)
@@ -126,7 +127,7 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest, establish
 		// Utilisateur normal : récupérer ses permissions spécifiques
 		permissions, err = s.permService.GetUserPermissions(ctx, user.ID, establishmentID, establishmentCode)
 	}
-	
+
 	if err != nil {
 		// Nettoyer la session créée en cas d'erreur
 		s.sessionService.DeleteSession(ctx, token, establishmentCode, user.ID)
@@ -187,10 +188,10 @@ func (s *AuthService) Logout(ctx context.Context, token, establishmentCode, user
 func (s *AuthService) LogoutByToken(ctx context.Context, token, establishmentCode string) error {
 	// 1. Essayer de récupérer la session pour obtenir l'userID et les infos d'audit
 	session, err := s.sessionService.GetSession(ctx, token, establishmentCode)
-	
+
 	var userID string
 	var logoutInfo map[string]interface{}
-	
+
 	if err == nil && session != nil {
 		userID = session.UserID
 		// Informations pour l'audit
@@ -209,10 +210,10 @@ func (s *AuthService) LogoutByToken(ctx context.Context, token, establishmentCod
 			"session_status":     "already_invalid",
 		}
 	}
-	
+
 	// 2. Log de l'événement logout avant suppression
 	s.logLogoutEvent(userID, establishmentCode, logoutInfo)
-	
+
 	// 3. Effectuer le logout complet selon les spécifications Redis
 	return s.sessionService.DeleteSessionIdempotent(ctx, token, establishmentCode, userID)
 }
@@ -267,7 +268,7 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID, establishmentI
 	var mustChangePassword bool
 	var passwordChangedAt *time.Time
 
-	err = tx.QueryRow(ctx, queries.UserQueries.ChangePassword, 
+	err = tx.QueryRow(ctx, queries.UserQueries.ChangePassword,
 		newPasswordHash, newSalt, userID, establishmentID).Scan(
 		&updatedUserID, &mustChangePassword, &passwordChangedAt)
 
@@ -371,7 +372,7 @@ func (s *AuthService) GetCurrentUserByID(ctx context.Context, userID, establishm
 		// Utilisateur normal : récupérer ses permissions spécifiques
 		permissions, err = s.permService.GetUserPermissions(ctx, user.ID, establishmentID, establishmentCode)
 	}
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("erreur lors de la récupération des permissions: %w", err)
 	}
@@ -400,18 +401,18 @@ func (s *AuthService) GetCurrentUserByID(ctx context.Context, userID, establishm
 // checkRateLimit vérifie les tentatives de connexion
 func (s *AuthService) checkRateLimit(ctx context.Context, establishmentCode, identifiant string) error {
 	key := fmt.Sprintf("soins_suite_%s_auth_ratelimit:%s", establishmentCode, identifiant)
-	
+
 	val, err := s.redisClient.Get(ctx, key)
 	if err != nil && err.Error() != "redis: nil" {
 		// Si Redis est indisponible, on continue sans rate limiting
 		return nil
 	}
-	
+
 	if val != "" {
 		// Parser la valeur
 		var attempts int
 		fmt.Sscanf(val, "%d", &attempts)
-		
+
 		if attempts >= 5 {
 			ttl, _ := s.redisClient.Client().TTL(ctx, key).Result()
 			return dto.NewAuthError("RATE_LIMIT_EXCEEDED", "Trop de tentatives de connexion", map[string]interface{}{
@@ -419,14 +420,14 @@ func (s *AuthService) checkRateLimit(ctx context.Context, establishmentCode, ide
 			})
 		}
 	}
-	
+
 	return nil
 }
 
 // incrementFailedAttempt incrémente le compteur d'échecs
 func (s *AuthService) incrementFailedAttempt(ctx context.Context, establishmentCode, identifiant string) {
 	key := fmt.Sprintf("soins_suite_%s_auth_ratelimit:%s", establishmentCode, identifiant)
-	
+
 	val := s.redisClient.Client().Incr(ctx, key).Val()
 	if val == 1 {
 		s.redisClient.Expire(ctx, key, 15*time.Minute)
@@ -446,13 +447,13 @@ func (s *AuthService) validateClientTypeCoherence(clientType string, isAdmin boo
 			"reason": "Compte administrateur requis pour le back-office",
 		})
 	}
-	
+
 	if clientType == "front-office" && isAdmin {
 		return dto.NewAuthError("CLIENT_TYPE_MISMATCH", "Accès refusé à cette interface", map[string]interface{}{
 			"reason": "Compte utilisateur standard requis pour le front-office",
 		})
 	}
-	
+
 	return nil
 }
 
@@ -460,13 +461,13 @@ func (s *AuthService) validateClientTypeCoherence(clientType string, isAdmin boo
 func (s *AuthService) getSetupState(ctx context.Context, establishmentID string) (*dto.SetupData, error) {
 	var estTermine bool
 	var etapeActuelle int
-	
+
 	row := s.db.QueryRow(ctx, queries.UserQueries.GetSetupState, establishmentID)
 	err := row.Scan(&estTermine, &etapeActuelle)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &dto.SetupData{
 		EstTermine:    estTermine,
 		EtapeActuelle: etapeActuelle,
@@ -479,12 +480,12 @@ func (s *AuthService) calculateSessionDuration(createdAt string) string {
 	if createdAt == "" {
 		return "unknown"
 	}
-	
+
 	created, err := time.Parse(time.RFC3339, createdAt)
 	if err != nil {
 		return "invalid_format"
 	}
-	
+
 	duration := time.Since(created)
 	return fmt.Sprintf("%.0fs", duration.Seconds())
 }
@@ -493,28 +494,28 @@ func (s *AuthService) calculateSessionDuration(createdAt string) string {
 func (s *AuthService) logLogoutEvent(userID, establishmentCode string, info map[string]interface{}) {
 	// Log structuré selon les conventions du projet (simple fmt.Printf pour MVP)
 	// En production, ceci devrait utiliser un logger structuré (slog, logrus, etc.)
-	
+
 	logData := make(map[string]interface{})
 	logData["event"] = "auth.logout"
 	logData["timestamp"] = time.Now().Format(time.RFC3339)
 	logData["user_id"] = userID
 	logData["establishment_code"] = establishmentCode
-	
+
 	// Ajouter les informations supplémentaires
 	for k, v := range info {
 		logData[k] = v
 	}
-	
+
 	// Log simple pour MVP (selon les conventions du projet)
 	if userID != "" {
-		log.Printf("[AUTH-LOGOUT] user_id=%s establishment=%s client_type=%v session_duration=%v", 
-			userID, 
-			establishmentCode, 
-			info["client_type"], 
+		log.Printf("[AUTH-LOGOUT] user_id=%s establishment=%s client_type=%v session_duration=%v",
+			userID,
+			establishmentCode,
+			info["client_type"],
 			info["session_duration"])
 	} else {
-		log.Printf("[AUTH-LOGOUT] establishment=%s status=%v", 
-			establishmentCode, 
+		log.Printf("[AUTH-LOGOUT] establishment=%s status=%v",
+			establishmentCode,
 			info["session_status"])
 	}
 }
@@ -523,7 +524,7 @@ func (s *AuthService) logLogoutEvent(userID, establishmentCode string, info map[
 func (s *AuthService) getCurrentSessionInfo(ctx context.Context, userID, establishmentCode string) (dto.SessionInfo, error) {
 	// Récupérer les sessions actives de l'utilisateur depuis Redis
 	userSessionsKey := fmt.Sprintf("soins_suite_%s_auth_user_sessions:%s", establishmentCode, userID)
-	
+
 	tokens, err := s.redisClient.Client().SMembers(ctx, userSessionsKey).Result()
 	if err != nil || len(tokens) == 0 {
 		return dto.SessionInfo{}, fmt.Errorf("aucune session active trouvée")
@@ -533,7 +534,7 @@ func (s *AuthService) getCurrentSessionInfo(ctx context.Context, userID, establi
 	// En production, on pourrait identifier la session courante par le token dans le contexte
 	token := tokens[0]
 	sessionKey := fmt.Sprintf("soins_suite_%s_auth_session:%s", establishmentCode, token)
-	
+
 	sessionData := s.redisClient.Client().HGetAll(ctx, sessionKey).Val()
 	if len(sessionData) == 0 {
 		return dto.SessionInfo{}, fmt.Errorf("session non trouvée")

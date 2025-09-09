@@ -67,8 +67,8 @@ func (sm *SeedingManager) CheckSeedDataExists(ctx context.Context) (*seeds.SeedD
 		return nil, fmt.Errorf("erreur vérification données seeding: %w", err)
 	}
 
-	fmt.Printf("[SEEDING] État données:  modules=%t",
-		status.ModulesExist)
+	fmt.Printf("[SEEDING] État données: modules=%t, super_admin=%t",
+		status.ModulesExist, status.SuperAdminExist)
 
 	return status, nil
 }
@@ -89,6 +89,13 @@ func (sm *SeedingManager) ApplySeeding(ctx context.Context, status *seeds.SeedDa
 		}
 	}
 
+	// 2. Créer super admin TIR si manquant
+	if !status.SuperAdminExist {
+		if err := sm.SeedSuperAdminTIR(ctx); err != nil {
+			return fmt.Errorf("échec seeding super admin TIR: %w", err)
+		}
+	}
+
 	fmt.Printf("[SEEDING] ✅ Seeding terminé avec succès\n")
 	return nil
 }
@@ -104,6 +111,18 @@ func (sm *SeedingManager) SeedModulesFromJSON(ctx context.Context) error {
 	}
 
 	fmt.Printf("[SEEDING] ✅ Modules et rubriques créés depuis JSON\n")
+	return nil
+}
+
+// SeedSuperAdminTIR exécute le seeding du super admin TIR
+func (sm *SeedingManager) SeedSuperAdminTIR(ctx context.Context) error {
+	fmt.Printf("[SEEDING] 👤 Création super admin TIR par défaut\n")
+
+	if err := sm.seedService.SeedSuperAdminTIR(ctx); err != nil {
+		return fmt.Errorf("seeding super admin TIR: %w", err)
+	}
+
+	fmt.Printf("[SEEDING] ✅ Super admin TIR créé\n")
 	return nil
 }
 

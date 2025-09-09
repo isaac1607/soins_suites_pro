@@ -121,7 +121,7 @@ func (bs *BootstrapSystem) executePhase0(ctx context.Context) PhaseResult {
 			Phase:       phase,
 			Success:     false,
 			Duration:    duration,
-			Description: "Création extension uuid-ossp",
+			Description: "Création extensions PostgreSQL (uuid-ossp, pg_trgm)",
 			Error:       err.Error(),
 		}
 	}
@@ -131,7 +131,7 @@ func (bs *BootstrapSystem) executePhase0(ctx context.Context) PhaseResult {
 		Phase:       phase,
 		Success:     true,
 		Duration:    duration,
-		Description: "Extension uuid-ossp créée avec succès",
+		Description: "Extensions PostgreSQL (uuid-ossp, pg_trgm) créées avec succès",
 	}
 }
 

@@ -4,6 +4,7 @@ package queries
 var SystemQueries = struct {
 	GetEstablishmentInfo          string
 	GetLicenseInfo                string
+	GetLicenseModulesInfo         string
 	GetAuthorizedModules          string
 	GetAuthorizedModulesOnly      string
 	GetSystemConfiguration        string
@@ -52,6 +53,65 @@ var SystemQueries = struct {
 		AND statut = 'actif'
 		ORDER BY created_at DESC
 		LIMIT 1
+	`,
+
+	/**
+	 * Récupère les informations complètes des modules autorisés par la licence
+	 * Paramètres: $1 = establishment_id
+	 */
+	GetLicenseModulesInfo: `
+		WITH licence_modules AS (
+			SELECT 
+				l.id as licence_id,
+				l.type_licence,
+				l.mode_deploiement,
+				l.statut,
+				l.date_activation,
+				l.date_expiration,
+				l.modules_autorises
+			FROM base_licence l
+			WHERE l.etablissement_id = $1
+			AND l.statut = 'actif'
+			ORDER BY l.created_at DESC
+			LIMIT 1
+		)
+		SELECT
+			lm.licence_id,
+			lm.type_licence,
+			lm.mode_deploiement,
+			lm.statut,
+			lm.date_activation,
+			lm.date_expiration,
+			COALESCE(
+				json_agg(
+					CASE 
+						WHEN m.id IS NOT NULL THEN
+							json_build_object(
+								'id', m.id,
+								'code_module', m.code_module,
+								'nom_standard', m.nom_standard,
+								'description', m.description,
+								'est_medical', m.est_medical,
+								'peut_prendre_ticket', m.peut_prendre_ticket,
+								'est_actif', m.est_actif,
+								'est_module_back_office', m.est_module_back_office
+							)
+						ELSE NULL
+					END
+				) FILTER (WHERE m.id IS NOT NULL),
+				'[]'::json
+			) as modules_info
+		FROM licence_modules lm
+		LEFT JOIN base_module m ON (
+			CASE 
+				WHEN jsonb_typeof(lm.modules_autorises) = 'array' THEN
+					lm.modules_autorises ? m.code_module
+				WHEN jsonb_typeof(lm.modules_autorises) = 'object' THEN
+					(lm.modules_autorises->'modules') ? m.code_module
+				ELSE false
+			END
+		) AND m.est_actif = true
+		GROUP BY lm.licence_id, lm.type_licence, lm.mode_deploiement, lm.statut, lm.date_activation, lm.date_expiration
 	`,
 
 	/**

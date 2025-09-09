@@ -18,6 +18,60 @@ $$ language 'plpgsql';
 -- ============================================================================================================
 
 -- =====================================
+-- TABLE : TIR_ADMIN_GLOBAL
+-- =====================================
+-- Description : Comptes administrateurs globaux TIR (hors établissement)
+CREATE TABLE tir_admin_global (
+  -- Clé primaire
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+  -- Identification utilisateur
+  identifiant VARCHAR(255) NOT NULL,
+  nom VARCHAR(255) NOT NULL,
+  prenoms VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  telephone VARCHAR(20),
+
+  -- Authentification
+  password_hash VARCHAR(255) NOT NULL,
+  salt VARCHAR(100) NOT NULL,
+  must_change_password BOOLEAN DEFAULT TRUE,
+  password_changed_at TIMESTAMP,
+
+  -- Niveau d'administration global
+  niveau_admin VARCHAR(30) NOT NULL, -- 'super_admin_tir', 'admin_tir'
+  
+  -- Permissions spéciales
+  peut_gerer_licences BOOLEAN DEFAULT FALSE,
+  peut_gerer_etablissements BOOLEAN DEFAULT FALSE,
+  peut_acceder_donnees_etablissement BOOLEAN DEFAULT FALSE,
+  peut_gerer_admins_globaux BOOLEAN DEFAULT FALSE,
+
+  -- État utilisateur
+  statut VARCHAR(20) DEFAULT 'actif',
+  motif_desactivation TEXT,
+
+  -- Métadonnées standards
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  last_login_at TIMESTAMP,
+  created_by UUID,
+  updated_by UUID,
+
+  -- Contraintes métier Unique
+  CONSTRAINT UQ_tir_admin_global_identifiant UNIQUE (identifiant),
+  CONSTRAINT UQ_tir_admin_global_email UNIQUE (email),
+  
+  -- Contraintes métier Check
+  CONSTRAINT CK_tir_admin_global_niveau_admin CHECK (niveau_admin IN ('super_admin_tir', 'admin_tir')),
+  CONSTRAINT CK_tir_admin_global_statut CHECK (statut IN ('actif', 'suspendu', 'archive')),
+  
+  -- Contraintes métier Foreign Key
+  CONSTRAINT FK_tir_admin_global_created_by FOREIGN KEY (created_by) REFERENCES tir_admin_global(id),
+  CONSTRAINT FK_tir_admin_global_updated_by FOREIGN KEY (updated_by) REFERENCES tir_admin_global(id)
+);
+
+-- =====================================
 -- TABLE : BASE_ETABLISSEMENT
 -- =====================================
 -- Description : Table principale de l'établissement
@@ -60,10 +114,11 @@ CREATE TABLE base_etablissement (
 
   -- Métadonnées standards
   created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-
-  -- Ajout du champ updated_by manquant
-  updated_by UUID,
+  updated_at_admin_tir TIMESTAMP,
+  updated_at_user TIMESTAMP,
+  created_by UUID,
+  updated_by_admin_tir UUID,
+  updated_by_user UUID,
 
   -- Contraintes métier
   CONSTRAINT UQ_base_code_etablissement_etablissement UNIQUE (code_etablissement),
@@ -140,12 +195,20 @@ CREATE TABLE user_utilisateur (
 -- =====================================
 -- AJOUT DES FOREIGN KEYS APRÈS CRÉATION DES TABLES
 -- =====================================
--- Maintenant que les deux tables existent, on peut ajouter les FK manquantes
+-- Maintenant que les tables existent, on peut ajouter les FK manquantes
 
--- FK de base_etablissement vers user_utilisateur
+-- FK de base_etablissement vers tir_admin_global
 ALTER TABLE base_etablissement 
-ADD CONSTRAINT FK_base_etablissement_updated_by 
-FOREIGN KEY (updated_by) REFERENCES user_utilisateur(id);
+ADD CONSTRAINT FK_base_etablissement_created_by 
+FOREIGN KEY (created_by) REFERENCES tir_admin_global(id);
+
+ALTER TABLE base_etablissement 
+ADD CONSTRAINT FK_base_etablissement_updated_by_admin_tir 
+FOREIGN KEY (updated_by_admin_tir) REFERENCES tir_admin_global(id);
+
+ALTER TABLE base_etablissement 
+ADD CONSTRAINT FK_base_etablissement_updated_by_user 
+FOREIGN KEY (updated_by_user) REFERENCES user_utilisateur(id);
 
 -- =====================================
 -- TABLE : BASE_LICENCE
@@ -163,7 +226,9 @@ CREATE TABLE base_licence (
   -- Type Licence/licence
   type_licence VARCHAR(20) NOT NULL,     -- 'premium', 'standard', 'evaluation'
 
-  -- Modules autorisés
+  -- Modules autorisés (front-office uniquement: est_module_back_office = FALSE)
+  -- Format JSON attendu: {"modules": [{"id": "uuid", "code": "CODE_MODULE"}, ...]}
+  -- Exemple: {"modules": [{"id": "123e4567-e89b-12d3-a456-426614174000", "code": "ACCUEIL"}, {"id": "789e0123-e89b-12d3-a456-426614174001", "code": "CAISSE"}]}
   modules_autorises JSONB NOT NULL,
   
   -- Validité Licence
@@ -188,7 +253,7 @@ CREATE TABLE base_licence (
   CONSTRAINT CK_base_licence_type_licence CHECK (type_licence IN ('premium', 'standard', 'evaluation')),
   CONSTRAINT CK_base_licence_statut CHECK (statut IN ('actif', 'expiree', 'revoquee')),
   CONSTRAINT FK_base_licence_etablissement_id FOREIGN KEY (etablissement_id) REFERENCES base_etablissement(id),
-  CONSTRAINT FK_base_licence_created_by FOREIGN KEY (created_by) REFERENCES user_utilisateur(id),
+  CONSTRAINT FK_base_licence_created_by FOREIGN KEY (created_by) REFERENCES tir_admin_global(id),
   
   -- Cohérence type/expiration
   CONSTRAINT CK_base_licence_expiration_coherence CHECK (
@@ -297,7 +362,36 @@ CREATE TABLE base_rubrique (
   CONSTRAINT FK_base_rubrique_rubrique_parent_id FOREIGN KEY (rubrique_parent_id) REFERENCES base_rubrique(id)
 );
 
+-- =====================================
+-- TABLE : TIR_ADMIN_SESSION
+-- =====================================
+-- Description : Sessions actives des administrateurs TIR (globaux)
+CREATE TABLE tir_admin_session (
+  -- Clé primaire
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  
+  -- Session data
+  token VARCHAR(255) NOT NULL,  -- Token format avec préfixe: soins_suite_tir_admin_{uuid}
+  admin_id UUID NOT NULL,
+  
+  -- Metadata
+  ip_address INET,
+  user_agent TEXT,
+  last_activity TIMESTAMP DEFAULT NOW(),
+  expires_at TIMESTAMP NOT NULL,
+  
+  -- Métadonnées standards
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  
+  -- Contraintes
+  CONSTRAINT UQ_tir_admin_session_token UNIQUE (token),
+  CONSTRAINT FK_tir_admin_session_admin FOREIGN KEY (admin_id) REFERENCES tir_admin_global(id)
+);
 
+
+COMMENT ON TABLE tir_admin_global IS 'Administrateurs globaux TIR (indépendants des établissements)';
+COMMENT ON TABLE tir_admin_session IS 'Sessions actives administrateurs TIR globaux avec tokens UUID';
 COMMENT ON TABLE base_etablissement IS 'Table principale établissement avec configuration mono-tenant';
 COMMENT ON TABLE base_module IS 'Modules métier avec distinction back-office/front-office';
 COMMENT ON TABLE base_licence IS 'Licences avec clés obfusquées 20 caractères et validation intégrité';
@@ -312,11 +406,8 @@ CREATE TRIGGER trigger_user_utilisateur_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Trigger pour base_etablissement  
-CREATE TRIGGER trigger_base_etablissement_updated_at
-    BEFORE UPDATE ON base_etablissement
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+-- Note : Pas de trigger automatique pour base_etablissement
+-- Les champs updated_at_admin_tir et updated_at_user sont gérés manuellement
 
 CREATE TRIGGER trigger_licence_updated_at
     BEFORE UPDATE ON base_licence
@@ -337,5 +428,17 @@ CREATE TRIGGER trigger_base_module_updated_at
 -- Trigger pour base_rubrique
 CREATE TRIGGER trigger_base_rubrique_updated_at
     BEFORE UPDATE ON base_rubrique
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Trigger pour tir_admin_global
+CREATE TRIGGER trigger_tir_admin_global_updated_at
+    BEFORE UPDATE ON tir_admin_global
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Trigger pour tir_admin_session
+CREATE TRIGGER trigger_tir_admin_session_updated_at
+    BEFORE UPDATE ON tir_admin_session
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();

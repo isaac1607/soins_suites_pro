@@ -3,10 +3,11 @@ package auth
 import (
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"soins-suite-core/internal/infrastructure/database/postgres"
 	"soins-suite-core/internal/infrastructure/database/redis"
 	"soins-suite-core/internal/modules/auth/services"
+
+	"github.com/gin-gonic/gin"
 )
 
 type PermissionMiddleware struct {
@@ -27,7 +28,7 @@ func (m *PermissionMiddleware) RequireModule(moduleCode string) gin.HandlerFunc 
 		// Récupérer les informations de session
 		session, exists := c.Get("session")
 		if !exists {
-			m.respondPermissionError(c, "SESSION_REQUIRED", 
+			m.respondPermissionError(c, "SESSION_REQUIRED",
 				"Session requise pour vérifier les permissions", nil)
 			return
 		}
@@ -52,7 +53,7 @@ func (m *PermissionMiddleware) RequireModule(moduleCode string) gin.HandlerFunc 
 			m.respondPermissionError(c, "PERMISSION_CHECK_ERROR",
 				"Erreur lors de la vérification des permissions", map[string]interface{}{
 					"module_code": moduleCode,
-					"error":      err.Error(),
+					"error":       err.Error(),
 				})
 			return
 		}
@@ -61,7 +62,7 @@ func (m *PermissionMiddleware) RequireModule(moduleCode string) gin.HandlerFunc 
 			m.respondPermissionError(c, "INSUFFICIENT_PERMISSIONS",
 				"Permissions insuffisantes pour cette action", map[string]interface{}{
 					"required_permission": "module:" + moduleCode,
-					"user_id":            sessionCtx.UserID,
+					"user_id":             sessionCtx.UserID,
 				})
 			return
 		}
@@ -104,7 +105,7 @@ func (m *PermissionMiddleware) RequireRubrique(moduleCode, rubriqueCode string) 
 				"Erreur lors de la vérification des permissions", map[string]interface{}{
 					"module_code":   moduleCode,
 					"rubrique_code": rubriqueCode,
-					"error":        err.Error(),
+					"error":         err.Error(),
 				})
 			return
 		}
@@ -113,7 +114,7 @@ func (m *PermissionMiddleware) RequireRubrique(moduleCode, rubriqueCode string) 
 			m.respondPermissionError(c, "INSUFFICIENT_PERMISSIONS",
 				"Permissions insuffisantes pour cette action", map[string]interface{}{
 					"required_permission": "rubrique:" + moduleCode + ":" + rubriqueCode,
-					"user_id":            sessionCtx.UserID,
+					"user_id":             sessionCtx.UserID,
 				})
 			return
 		}
@@ -155,7 +156,7 @@ func (m *PermissionMiddleware) RequirePermission(permission string) gin.HandlerF
 				m.respondPermissionError(c, "INVALID_RUBRIQUE_PERMISSION_FORMAT",
 					"Format de permission rubrique invalide", map[string]interface{}{
 						"provided_permission": permission,
-						"expected_format":    "rubrique:MODULE_CODE:RUBRIQUE_CODE",
+						"expected_format":     "rubrique:MODULE_CODE:RUBRIQUE_CODE",
 					})
 				return
 			}
@@ -195,7 +196,7 @@ func (m *PermissionMiddleware) RequireAdmin() gin.HandlerFunc {
 		if sessionCtx.ClientType != "back-office" {
 			m.respondPermissionError(c, "ADMIN_ACCESS_REQUIRED",
 				"Accès administrateur requis", map[string]interface{}{
-					"current_client_type": sessionCtx.ClientType,
+					"current_client_type":  sessionCtx.ClientType,
 					"required_client_type": "back-office",
 				})
 			return

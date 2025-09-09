@@ -65,7 +65,7 @@ func (s *SystemService) GetSystemInfo(ctx context.Context, establishmentID strin
 				Type:             "",
 				ModeDeploiement:  "",
 				Statut:           "non_configuree",
-				ModulesAutorises: []string{},
+				ModulesAutorises: []dto.ModuleLicenseDTO{},
 			}
 		} else {
 			return nil, fmt.Errorf("erreur récupération licence: %w", err)
@@ -74,7 +74,11 @@ func (s *SystemService) GetSystemInfo(ctx context.Context, establishmentID strin
 	response.Licence = *license
 
 	// Récupération des modules autorisés
-	modules, err := s.getAuthorizedModules(ctx, establishmentID, license.ModulesAutorises)
+	var moduleCodes []string
+	for _, module := range license.ModulesAutorises {
+		moduleCodes = append(moduleCodes, module.CodeModule)
+	}
+	modules, err := s.getAuthorizedModules(ctx, establishmentID, moduleCodes)
 	if err != nil {
 		return nil, fmt.Errorf("erreur récupération modules: %w", err)
 	}
@@ -113,20 +117,20 @@ func (s *SystemService) getEstablishmentInfo(ctx context.Context, establishmentI
 	return &establishment, nil
 }
 
-// getLicenseInfo récupère les informations de licence
+// getLicenseInfo récupère les informations de licence avec les informations complètes des modules
 func (s *SystemService) getLicenseInfo(ctx context.Context, establishmentID string) (*dto.LicenseInfoDTO, error) {
 	var license dto.LicenseInfoDTO
-	var modulesJSON []byte
+	var modulesInfoJSON []byte
 	var dateActivation time.Time
 
-	err := s.db.QueryRow(ctx, queries.SystemQueries.GetLicenseInfo, establishmentID).Scan(
+	err := s.db.QueryRow(ctx, queries.SystemQueries.GetLicenseModulesInfo, establishmentID).Scan(
 		&license.ID,
 		&license.Type,
 		&license.ModeDeploiement,
 		&license.Statut,
 		&dateActivation,
 		&license.DateExpiration,
-		&modulesJSON,
+		&modulesInfoJSON,
 	)
 
 	if err != nil {
@@ -140,39 +144,14 @@ func (s *SystemService) getLicenseInfo(ctx context.Context, establishmentID stri
 	// Assigner la date d'activation
 	license.DateActivation = &dateActivation
 
-	// Désérialisation des modules autorisés
-	// Le format peut être soit un tableau direct, soit un objet avec une clé "modules"
-	var modulesData interface{}
-	err = json.Unmarshal(modulesJSON, &modulesData)
+	// Désérialisation des informations complètes des modules
+	var modulesData []dto.ModuleLicenseDTO
+	err = json.Unmarshal(modulesInfoJSON, &modulesData)
 	if err != nil {
-		return nil, fmt.Errorf("erreur désérialisation modules autorisés: %w", err)
+		return nil, fmt.Errorf("erreur désérialisation modules info: %w", err)
 	}
 
-	// Vérifier le format des données
-	switch v := modulesData.(type) {
-	case []interface{}:
-		// Format tableau direct: ["ACCUEIL", "CAISSE"]
-		license.ModulesAutorises = make([]string, len(v))
-		for i, module := range v {
-			if str, ok := module.(string); ok {
-				license.ModulesAutorises[i] = str
-			}
-		}
-	case map[string]interface{}:
-		// Format objet: {"modules": ["ACCUEIL", "CAISSE"]}
-		if modules, exists := v["modules"]; exists {
-			if moduleArray, ok := modules.([]interface{}); ok {
-				license.ModulesAutorises = make([]string, len(moduleArray))
-				for i, module := range moduleArray {
-					if str, ok := module.(string); ok {
-						license.ModulesAutorises[i] = str
-					}
-				}
-			}
-		}
-	default:
-		return nil, fmt.Errorf("format modules autorisés invalide")
-	}
+	license.ModulesAutorises = modulesData
 
 	// Calcul des jours restants si expiration définie
 	if license.DateExpiration != nil {

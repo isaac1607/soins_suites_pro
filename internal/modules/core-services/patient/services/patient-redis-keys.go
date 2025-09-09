@@ -33,3 +33,9 @@ func (k *PatientRedisKeys) PatientCacheKey(etablissementCode, codePatient string
 func (k *PatientRedisKeys) PatientSearchCacheKey(etablissementCode, hashCriteres string) string {
 	return fmt.Sprintf("soins_suite_%s_patient_search:%s", etablissementCode, hashCriteres)
 }
+
+// PatientDetailCacheKey génère la clé Redis pour le cache détaillé d'un patient (CS-P-003)
+// Format: soins_suite_patient_cache:{code_patient} (selon spécifications Redis)
+func (k *PatientRedisKeys) PatientDetailCacheKey(codePatient string) string {
+	return fmt.Sprintf("soins_suite_patient_cache:%s", codePatient)
+}
